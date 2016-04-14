@@ -1,0 +1,3 @@
+function ScormXBlock(runtime, element) {
+
+}
