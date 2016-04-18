@@ -50,7 +50,8 @@ class ScormXBlock(XBlock):
         return data.decode("utf8")
 
     def student_view(self, context=None):
-        scorm_file = 'http://{}{}'.format(settings.ENV_TOKENS.get('LMS_BASE'), self.scorm_file)
+        scheme = 'https' if settings.HTTPS == 'on' else 'http'
+        scorm_file = '{}://{}{}'.format(scheme, settings.ENV_TOKENS.get('LMS_BASE'), self.scorm_file)
         html = self.resource_string("static/html/scormxblock.html")
         frag = Fragment(html.format(scorm_file=scorm_file, self=self))
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
