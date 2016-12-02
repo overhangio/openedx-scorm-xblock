@@ -120,6 +120,12 @@ class ScormXBlock(XBlock):
                 })
             self.lesson_score = 0
 
+    def max_score(self):
+        """
+        Return the maximum score possible.
+        """
+        return 1
+
     @staticmethod
     def workbench_scenarios():
         """A canned scenario for display in the workbench."""
