@@ -93,7 +93,7 @@ class ScormXBlock(XBlock):
     def scorm_set_value(self, data, suffix=''):
         context = {'result': 'success'}
         name = data.get('name')
-        if name == 'cmi.core.lesson_status' and data.get('value') != 'completed':
+        if name == 'cmi.core.lesson_status': # and data.get('value') != 'completed':
             self.lesson_status = data.get('value')
             self.publish_grade()
             context.update({"lesson_score": self.lesson_score})
@@ -102,7 +102,7 @@ class ScormXBlock(XBlock):
         return context
 
     def publish_grade(self):
-        if self.lesson_status == 'passed':
+        if self.lesson_status == 'passed' or self.lesson_status == 'completed':
             self.runtime.publish(
                 self,
                 'grade',
