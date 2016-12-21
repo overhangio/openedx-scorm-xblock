@@ -5,10 +5,11 @@ import zipfile
 import shutil
 
 from django.conf import settings
+from django.template import Context, Template
 from webob import Response
 
 from xblock.core import XBlock
-from xblock.fields import Scope, Integer, String, Float
+from xblock.fields import Scope, String, Float, Boolean
 from xblock.fragment import Fragment
 
 # Make '_' a no-op so we can scrape strings
@@ -16,8 +17,6 @@ _ = lambda text: text
 
 
 class ScormXBlock(XBlock):
-
-    has_score = True
 
     display_name = String(
         display_name=_("Display Name"),
@@ -34,6 +33,14 @@ class ScormXBlock(XBlock):
         scope=Scope.user_state,
         default='not attempted'
     )
+    lesson_location = String(
+        scope=Scope.user_state,
+        default=''
+    )
+    suspend_data = String(
+        scope=Scope.user_state,
+        default=''
+    )
     lesson_score = Float(
         scope=Scope.user_state,
         default=0
@@ -43,6 +50,16 @@ class ScormXBlock(XBlock):
         default=1,
         scope=Scope.settings
     )
+    has_score = Boolean(
+        display_name=_("Scored"),
+        help=_("Select True if this component will receive a numerical score from the Scorm"),
+        default=False,
+        scope=Scope.settings
+    )
+    icon_class = String(
+        default="video",
+        scope=Scope.settings,
+    )
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -50,18 +67,18 @@ class ScormXBlock(XBlock):
         return data.decode("utf8")
 
     def student_view(self, context=None):
-        scheme = 'https' if settings.HTTPS == 'on' else 'http'
-        scorm_file = '{}://{}{}'.format(scheme, settings.ENV_TOKENS.get('LMS_BASE'), self.scorm_file)
-        html = self.resource_string("static/html/scormxblock.html")
-        frag = Fragment(html.format(scorm_file=scorm_file, self=self))
+        context_html = self.get_context_student()
+        template = self.render_template('static/html/scormxblock.html', context_html)
+        frag = Fragment(template)
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/scormxblock.js"))
         frag.initialize_js('ScormXBlock')
         return frag
 
     def studio_view(self, context=None):
-        html = self.resource_string("static/html/studio.html")
-        frag = Fragment(html.format(self=self))
+        context_html = self.get_context_studio()
+        template = self.render_template('static/html/studio.html', context_html)
+        frag = Fragment(template)
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/studio.js"))
         frag.initialize_js('ScormStudioXBlock')
@@ -70,6 +87,8 @@ class ScormXBlock(XBlock):
     @XBlock.handler
     def studio_submit(self, request, suffix=''):
         self.display_name = request.params['display_name']
+        self.has_score = request.params['has_score']
+        self.icon_class = 'problem' if self.has_score else 'video'
         if hasattr(request.params['file'], 'file'):
             file = request.params['file'].file
             zip_file = zipfile.ZipFile(file, 'r')
@@ -87,6 +106,10 @@ class ScormXBlock(XBlock):
         name = data.get('name')
         if name == 'cmi.core.lesson_status':
             return {'value': self.lesson_status}
+        if name == 'cmi.core.lesson_location':
+            return {'value': self.lesson_location}
+        if name == 'cmi.suspend_data':
+            return {'value': self.suspend_data}
         return {'value': ''}
 
     @XBlock.json_handler
@@ -95,10 +118,15 @@ class ScormXBlock(XBlock):
         name = data.get('name')
         if name == 'cmi.core.lesson_status': # and data.get('value') != 'completed':
             self.lesson_status = data.get('value')
-            self.publish_grade()
-            context.update({"lesson_score": self.lesson_score})
-        if name == 'cmi.core.score.raw':
+            if self.has_score:
+                self.publish_grade()
+                context.update({"lesson_score": self.lesson_score})
+        if name == 'cmi.core.score.raw' and self.has_score:
             self.lesson_score = int(data.get('value', 0))/100.0
+        if name == 'cmi.core.lesson_location':
+            self.lesson_location = data.get('value', '')
+        if name == 'cmi.suspend_data':
+            self.suspend_data = data.get('value', '')
         return context
 
     def publish_grade(self):
@@ -124,7 +152,33 @@ class ScormXBlock(XBlock):
         """
         Return the maximum score possible.
         """
-        return 1
+        return self.weight if self.has_score else None
+
+    def get_context_studio(self):
+        return {
+            'field_display_name': self.fields['display_name'],
+            'display_name_value': self.display_name,
+            'field_scorm_file': self.fields['scorm_file'],
+            'field_has_score': self.fields['has_score'],
+            'has_score_value': self.has_score
+        }
+
+    def get_context_student(self):
+        scorm_file_path = ''
+        if self.scorm_file:
+            scheme = 'https' if settings.HTTPS == 'on' else 'http'
+            scorm_file_path = '{}://{}{}'.format(scheme, settings.ENV_TOKENS.get('LMS_BASE'), self.scorm_file)
+        return {
+            'scorm_file_path': scorm_file_path,
+            'lesson_score': self.lesson_score,
+            'weight': self.weight,
+            'has_score': self.has_score
+        }
+
+    def render_template(self, template_path, context):
+        template_str = self.resource_string(template_path)
+        template = Template(template_str)
+        return template.render(Context(context))
 
     @staticmethod
     def workbench_scenarios():

@@ -2,15 +2,27 @@
   <ul class="list-input settings-list">
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="display_name">Display Name</label>
-        <input class="input setting-input" name="display_name" id="display_name" value="{self.display_name}" type="text" />
+        <label class="label setting-label" for="display_name">{{ field_display_name.display_name }}</label>
+        <input class="input setting-input" name="display_name" id="display_name" value="{{ display_name_value }}" type="text" />
+      </div>
+      <span class="tip setting-help">{{ field_display_name.help }}</span>
+    </li>
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="scorm_file">{{ field_scorm_file.display_name }}</label>
+        <input class="input setting-input" name="scorm_file" id="scorm_file" type="file" />
       </div>
     </li>
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="scorm_file">Upload scorm file</label>
-        <input class="input setting-input" name="scorm_file" id="scorm_file" value="{self.scorm_file}" type="file" />
+        <label class="label setting-label" for="has_score">{{ field_has_score.display_name }}</label>
+        <select name="has_score" id="has_score">
+          {% for option in field_has_score.values %}
+          <option value="{{ option.value }}" {% if option.value == has_score_value %}selected{% endif %}>{{ option.display_name }}</option>
+          {% endfor %}
+        </select>
       </div>
+      <span class="tip setting-help">{{ field_has_score.help }}</span>
     </li>
 
   </ul>
