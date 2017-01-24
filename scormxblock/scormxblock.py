@@ -185,13 +185,20 @@ class ScormXBlock(XBlock):
     def get_path_index_page(self, path_to_file):
         path_index_page = 'index.html'
         try:
-            namespaces = dict([node for _, node in ET.iterparse('{}/imsmanifest.xml'.format(path_to_file), events=['start-ns'])])
             tree = ET.parse('{}/imsmanifest.xml'.format(path_to_file))
         except IOError:
             pass
         else:
+            namespace = ''
+            for node in [node for _, node in ET.iterparse('{}/imsmanifest.xml'.format(path_to_file), events=['start-ns'])]:
+                if node[0] == '':
+                    namespace = node[1]
+                    break
             root = tree.getroot()
-            resource = root.find('{{{0}}}resources/{{{0}}}resource'.format(namespaces.get('')))
+            if namespace:
+                resource = root.find('{{{0}}}resources/{{{0}}}resource'.format(namespace))
+            else:
+                resource = root.find('resources/resource')
             if resource:
                 path_index_page = resource.get('href')
         return path_index_page
