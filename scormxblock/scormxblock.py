@@ -3,6 +3,7 @@ import os
 import pkg_resources
 import zipfile
 import shutil
+import xml.etree.ElementTree as ET
 
 from django.conf import settings
 from django.template import Context, Template
@@ -96,8 +97,9 @@ class ScormXBlock(XBlock):
             if os.path.exists(path_to_file):
                 shutil.rmtree(path_to_file)
             zip_file.extractall(path_to_file)
+            path_index_page = self.get_path_index_page(path_to_file)
             self.scorm_file = os.path.join(settings.PROFILE_IMAGE_BACKEND['options']['base_url'],
-                                           '{}/index.html'.format(self.location.block_id))
+                                           '{}/{}'.format(self.location.block_id, path_index_page))
 
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
 
@@ -179,6 +181,20 @@ class ScormXBlock(XBlock):
         template_str = self.resource_string(template_path)
         template = Template(template_str)
         return template.render(Context(context))
+
+    def get_path_index_page(self, path_to_file):
+        path_index_page = 'index.html'
+        try:
+            namespaces = dict([node for _, node in ET.iterparse('{}/imsmanifest.xml'.format(path_to_file), events=['start-ns'])])
+            tree = ET.parse('{}/imsmanifest.xml'.format(path_to_file))
+        except IOError:
+            pass
+        else:
+            root = tree.getroot()
+            resource = root.find('{{{0}}}resources/{{{0}}}resource'.format(namespaces.get('')))
+            if resource:
+                path_index_page = resource.get('href')
+        return path_index_page
 
     @staticmethod
     def workbench_scenarios():
