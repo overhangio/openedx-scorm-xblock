@@ -1,4 +1,5 @@
 import json
+import re
 import os
 import pkg_resources
 import zipfile
@@ -29,7 +30,10 @@ class ScormXBlock(XBlock):
         display_name=_("Upload scorm file"),
         scope=Scope.settings,
     )
-
+    version_scorm = String(
+        default="SCORM_12",
+        scope=Scope.settings,
+    )
     lesson_status = String(
         scope=Scope.user_state,
         default='not attempted'
@@ -46,7 +50,6 @@ class ScormXBlock(XBlock):
         scope=Scope.user_state,
         default=0
     )
-
     weight = Float(
         default=1,
         scope=Scope.settings
@@ -62,6 +65,8 @@ class ScormXBlock(XBlock):
         scope=Scope.settings,
     )
 
+    has_author_view = True
+
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
         data = pkg_resources.resource_string(__name__, path)
@@ -73,7 +78,10 @@ class ScormXBlock(XBlock):
         frag = Fragment(template)
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/scormxblock.js"))
-        frag.initialize_js('ScormXBlock')
+        settings = {
+            'version_scorm': self.version_scorm
+        }
+        frag.initialize_js('ScormXBlock', json_args=settings)
         return frag
 
     def studio_view(self, context=None):
@@ -85,11 +93,16 @@ class ScormXBlock(XBlock):
         frag.initialize_js('ScormStudioXBlock')
         return frag
 
+    def author_view(self, context):
+        html = self.resource_string("static/html/author_view.html")
+        frag = Fragment(html)
+        return frag
+
     @XBlock.handler
     def studio_submit(self, request, suffix=''):
         self.display_name = request.params['display_name']
         self.has_score = request.params['has_score']
-        self.icon_class = 'problem' if self.has_score else 'video'
+        self.icon_class = 'problem' if self.has_score == 'True' else 'video'
         if hasattr(request.params['file'], 'file'):
             file = request.params['file'].file
             zip_file = zipfile.ZipFile(file, 'r')
@@ -97,10 +110,7 @@ class ScormXBlock(XBlock):
             if os.path.exists(path_to_file):
                 shutil.rmtree(path_to_file)
             zip_file.extractall(path_to_file)
-            path_index_page = self.get_path_index_page(path_to_file)
-            self.scorm_file = os.path.join(settings.PROFILE_IMAGE_BACKEND['options']['base_url'],
-                                           '{}/{}'.format(self.location.block_id, path_index_page))
-
+            self.set_fields_xblock(path_to_file)
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
 
     @XBlock.json_handler
@@ -182,7 +192,7 @@ class ScormXBlock(XBlock):
         template = Template(template_str)
         return template.render(Context(context))
 
-    def get_path_index_page(self, path_to_file):
+    def set_fields_xblock(self, path_to_file):
         path_index_page = 'index.html'
         try:
             tree = ET.parse('{}/imsmanifest.xml'.format(path_to_file))
@@ -195,13 +205,22 @@ class ScormXBlock(XBlock):
                     namespace = node[1]
                     break
             root = tree.getroot()
+
             if namespace:
                 resource = root.find('{{{0}}}resources/{{{0}}}resource'.format(namespace))
+                schemaversion = root.find('{{{0}}}metadata/{{{0}}}schemaversion'.format(namespace))
             else:
                 resource = root.find('resources/resource')
+                schemaversion = root.find('metadata/schemaversion')
+
             if resource:
                 path_index_page = resource.get('href')
-        return path_index_page
+
+            if schemaversion and re.match('^1.2$', schemaversion.text) is None:
+                self.version_scorm = 'SCORM_2004'
+
+        self.scorm_file = os.path.join(settings.PROFILE_IMAGE_BACKEND['options']['base_url'],
+                                       '{}/{}'.format(self.location.block_id, path_index_page))
 
     @staticmethod
     def workbench_scenarios():
