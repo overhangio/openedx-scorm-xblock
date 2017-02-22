@@ -216,7 +216,7 @@ class ScormXBlock(XBlock):
             if resource:
                 path_index_page = resource.get('href')
 
-            if schemaversion and re.match('^1.2$', schemaversion.text) is None:
+            if (not schemaversion is None) and (re.match('^1.2$', schemaversion.text) is None):
                 self.version_scorm = 'SCORM_2004'
 
         self.scorm_file = os.path.join(settings.PROFILE_IMAGE_BACKEND['options']['base_url'],
