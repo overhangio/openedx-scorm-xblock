@@ -98,6 +98,7 @@ function ScormXBlock(runtime, element, settings) {
         if (typeof response.lesson_score != "undefined"){
           $(".lesson_score", element).html(response.lesson_score);
         }
+        $(".completion_status", element).html(response.completion_status);
       }
     });
 

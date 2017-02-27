@@ -1,6 +1,6 @@
 <div class="scormxblock_block">
     {% if has_score %}
-    <p>(<span class="lesson_score">{{ lesson_score }}</span>/{{ weight }} points)</p>
+    <p>(<span class="lesson_score">{{ lesson_score }}</span>/{{ weight }} points) <span class="completion_status">{{ completion_status }}</span></p>
     {% endif %}
     {% if scorm_file_path %}
     <iframe class="scorm_object" src="{{ scorm_file_path }}"></iframe>

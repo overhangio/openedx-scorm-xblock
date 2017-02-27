@@ -11,7 +11,7 @@ from django.template import Context, Template
 from webob import Response
 
 from xblock.core import XBlock
-from xblock.fields import Scope, String, Float, Boolean
+from xblock.fields import Scope, String, Float, Boolean, Dict
 from xblock.fragment import Fragment
 
 # Make '_' a no-op so we can scrape strings
@@ -34,9 +34,14 @@ class ScormXBlock(XBlock):
         default="SCORM_12",
         scope=Scope.settings,
     )
+    # save completion_status for SCORM_2004
     lesson_status = String(
         scope=Scope.user_state,
         default='not attempted'
+    )
+    success_status = String(
+        scope=Scope.user_state,
+        default='unknown'
     )
     lesson_location = String(
         scope=Scope.user_state,
@@ -45,6 +50,10 @@ class ScormXBlock(XBlock):
     suspend_data = String(
         scope=Scope.user_state,
         default=''
+    )
+    data_scorm = Dict(
+        scope=Scope.user_state,
+        default={}
     )
     lesson_score = Float(
         scope=Scope.user_state,
@@ -116,41 +125,53 @@ class ScormXBlock(XBlock):
     @XBlock.json_handler
     def scorm_get_value(self, data, suffix=''):
         name = data.get('name')
-        if name == 'cmi.core.lesson_status':
+        if name in ['cmi.core.lesson_status', 'cmi.completion_status']:
             return {'value': self.lesson_status}
-        if name == 'cmi.core.lesson_location':
+        elif name == 'cmi.success_status':
+            return {'value': self.success_status}
+        elif name == 'cmi.core.lesson_location':
             return {'value': self.lesson_location}
-        if name == 'cmi.suspend_data':
+        elif name == 'cmi.suspend_data':
             return {'value': self.suspend_data}
-        return {'value': ''}
+        else:
+            return {'value': self.data_scorm.get(name, '')}
 
     @XBlock.json_handler
     def scorm_set_value(self, data, suffix=''):
         context = {'result': 'success'}
         name = data.get('name')
-        if name == 'cmi.core.lesson_status': # and data.get('value') != 'completed':
+
+        if name in ['cmi.core.lesson_status', 'cmi.completion_status']:
             self.lesson_status = data.get('value')
-            if self.has_score:
+            if self.has_score and data.get('value') in ['completed', 'failed', 'passed']:
                 self.publish_grade()
                 context.update({"lesson_score": self.lesson_score})
-        if name == 'cmi.core.score.raw' and self.has_score:
+
+        elif name == 'cmi.success_status':
+            self.success_status = data.get('value')
+            if self.has_score:
+                if self.success_status == 'unknown':
+                    self.lesson_score = 0
+                self.publish_grade()
+                context.update({"lesson_score": self.lesson_score})
+
+        elif name in ['cmi.core.score.raw', 'cmi.score.raw'] and self.has_score:
             self.lesson_score = int(data.get('value', 0))/100.0
-        if name == 'cmi.core.lesson_location':
+            context.update({"lesson_score": self.lesson_score})
+
+        elif name == 'cmi.core.lesson_location':
             self.lesson_location = data.get('value', '')
-        if name == 'cmi.suspend_data':
+
+        elif name == 'cmi.suspend_data':
             self.suspend_data = data.get('value', '')
+        else:
+            self.data_scorm[name] = data.get('value', '')
+
+        context.update({"completion_status": self.get_completion_status()})
         return context
 
     def publish_grade(self):
-        if self.lesson_status == 'passed' or self.lesson_status == 'completed':
-            self.runtime.publish(
-                self,
-                'grade',
-                {
-                    'value': self.lesson_score,
-                    'max_value': self.weight,
-                })
-        if self.lesson_status == 'failed':
+        if self.lesson_status == 'failed' or (self.version_scorm == 'SCORM_2004' and self.success_status in ['failed', 'unknown']):
             self.runtime.publish(
                 self,
                 'grade',
@@ -158,7 +179,14 @@ class ScormXBlock(XBlock):
                     'value': 0,
                     'max_value': self.weight,
                 })
-            self.lesson_score = 0
+        else:
+            self.runtime.publish(
+                self,
+                'grade',
+                {
+                    'value': self.lesson_score,
+                    'max_value': self.weight,
+                })
 
     def max_score(self):
         """
@@ -180,11 +208,13 @@ class ScormXBlock(XBlock):
         if self.scorm_file:
             scheme = 'https' if settings.HTTPS == 'on' else 'http'
             scorm_file_path = '{}://{}{}'.format(scheme, settings.ENV_TOKENS.get('LMS_BASE'), self.scorm_file)
+
         return {
             'scorm_file_path': scorm_file_path,
             'lesson_score': self.lesson_score,
             'weight': self.weight,
-            'has_score': self.has_score
+            'has_score': self.has_score,
+            'completion_status': self.get_completion_status()
         }
 
     def render_template(self, template_path, context):
@@ -221,6 +251,12 @@ class ScormXBlock(XBlock):
 
         self.scorm_file = os.path.join(settings.PROFILE_IMAGE_BACKEND['options']['base_url'],
                                        '{}/{}'.format(self.location.block_id, path_index_page))
+
+    def get_completion_status(self):
+        completion_status = self.lesson_status
+        if self.version_scorm == 'SCORM_2004' and self.success_status != 'unknown':
+            completion_status = self.success_status
+        return completion_status
 
     @staticmethod
     def workbench_scenarios():
