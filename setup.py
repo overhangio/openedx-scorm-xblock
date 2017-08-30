@@ -36,4 +36,8 @@ setup(
         ]
     },
     package_data=package_data("scormxblock", ["static", "public"]),
+    license="Apache",
+    classifiers=[
+        "License :: OSI Approved :: Apache Software License",
+    ]
 )
