@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from django.conf import settings
 from django.template import Context, Template
 from webob import Response
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 from xblock.core import XBlock
 from xblock.fields import Scope, String, Float, Boolean, Dict
@@ -207,7 +208,11 @@ class ScormXBlock(XBlock):
         scorm_file_path = ''
         if self.scorm_file:
             scheme = 'https' if settings.HTTPS == 'on' else 'http'
-            scorm_file_path = '{}://{}{}'.format(scheme, settings.ENV_TOKENS.get('LMS_BASE'), self.scorm_file)
+            scorm_file_path = '{}://{}{}'.format(
+                scheme,
+                configuration_helpers.get_value('site_domain', settings.ENV_TOKENS.get('LMS_BASE')),
+                self.scorm_file
+            )
 
         return {
             'scorm_file_path': scorm_file_path,
