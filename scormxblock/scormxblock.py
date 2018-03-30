@@ -1,22 +1,34 @@
 import json
+import hashlib
 import re
 import os
+import logging
 import pkg_resources
 import zipfile
 import shutil
 import xml.etree.ElementTree as ET
 
+from functools import partial
 from django.conf import settings
+from django.core.files import File
+from django.core.files.storage import default_storage
 from django.template import Context, Template
+from django.utils import timezone
 from webob import Response
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 from xblock.core import XBlock
-from xblock.fields import Scope, String, Float, Boolean, Dict
+from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime
 from xblock.fragment import Fragment
+
 
 # Make '_' a no-op so we can scrape strings
 _ = lambda text: text
+
+log = logging.getLogger(__name__)
+
+SCORM_ROOT = os.path.join(settings.MEDIA_ROOT, 'scorm')
+SCORM_URL = os.path.join(settings.MEDIA_URL, 'scorm')
 
 
 class ScormXBlock(XBlock):
@@ -30,6 +42,9 @@ class ScormXBlock(XBlock):
     scorm_file = String(
         display_name=_("Upload scorm file"),
         scope=Scope.settings,
+    )
+    scorm_file_meta = Dict(
+        scope=Scope.content
     )
     version_scorm = String(
         default="SCORM_12",
@@ -113,14 +128,34 @@ class ScormXBlock(XBlock):
         self.display_name = request.params['display_name']
         self.has_score = request.params['has_score']
         self.icon_class = 'problem' if self.has_score == 'True' else 'video'
+
         if hasattr(request.params['file'], 'file'):
-            file = request.params['file'].file
-            zip_file = zipfile.ZipFile(file, 'r')
-            path_to_file = os.path.join(settings.PROFILE_IMAGE_BACKEND['options']['location'], self.location.block_id)
+            scorm_file = request.params['file'].file
+
+            # First, save scorm file in the storage for mobile clients
+            self.scorm_file_meta['sha1'] = self.get_sha1(scorm_file)
+            self.scorm_file_meta['name'] = scorm_file.name
+            self.scorm_file_meta['path'] = path = self._file_storage_path()
+            self.scorm_file_meta['last_updated'] = timezone.now().strftime(DateTime.DATETIME_FORMAT)
+
+            if default_storage.exists(path):
+                log.info('Removing previously uploaded "{}"'.format(path))
+                default_storage.delete(path)
+
+            default_storage.save(path, File(scorm_file))
+            self.scorm_file_meta['size'] = default_storage.size(path)
+            log.info('"{}" file stored at "{}"'.format(scorm_file, path))
+
+            # Now unpack it into SCORM_ROOT to serve to students later
+            zip_file = zipfile.ZipFile(scorm_file, 'r')
+            path_to_file = os.path.join(SCORM_ROOT, self.location.block_id)
+
             if os.path.exists(path_to_file):
                 shutil.rmtree(path_to_file)
+
             zip_file.extractall(path_to_file)
             self.set_fields_xblock(path_to_file)
+
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
 
     @XBlock.json_handler
@@ -198,10 +233,9 @@ class ScormXBlock(XBlock):
     def get_context_studio(self):
         return {
             'field_display_name': self.fields['display_name'],
-            'display_name_value': self.display_name,
             'field_scorm_file': self.fields['scorm_file'],
             'field_has_score': self.fields['has_score'],
-            'has_score_value': self.has_score
+            'scorm_xblock': self
         }
 
     def get_context_student(self):
@@ -251,17 +285,50 @@ class ScormXBlock(XBlock):
             if resource:
                 path_index_page = resource.get('href')
 
-            if (not schemaversion is None) and (re.match('^1.2$', schemaversion.text) is None):
+            if (schemaversion is not None) and (re.match('^1.2$', schemaversion.text) is None):
                 self.version_scorm = 'SCORM_2004'
 
-        self.scorm_file = os.path.join(settings.PROFILE_IMAGE_BACKEND['options']['base_url'],
-                                       '{}/{}'.format(self.location.block_id, path_index_page))
+        self.scorm_file = os.path.join(SCORM_URL, '{}/{}'.format(self.location.block_id, path_index_page))
 
     def get_completion_status(self):
         completion_status = self.lesson_status
         if self.version_scorm == 'SCORM_2004' and self.success_status != 'unknown':
             completion_status = self.success_status
         return completion_status
+
+    def _file_storage_path(self):
+        """
+        Get file path of storage.
+        """
+        path = (
+            '{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}'
+            '/{sha1}{ext}'.format(
+                loc=self.location,
+                sha1=self.scorm_file_meta['sha1'],
+                ext=os.path.splitext(self.scorm_file_meta['name'])[1]
+            )
+        )
+        return path
+
+    def get_sha1(self, file_descriptor):
+        """
+        Get file hex digest (fingerprint).
+        """
+        block_size = 8 * 1024
+        sha1 = hashlib.sha1()
+        for block in iter(partial(file_descriptor.read, block_size), ''):
+            sha1.update(block)
+        file_descriptor.seek(0)
+        return sha1.hexdigest()
+
+    def student_view_data(self):
+        """
+        Inform REST api clients about original file location and it's "freshness".
+        Make sure to include `student_view_data=scormxblock` to URL params in the request.
+        """
+        return {'last_modified': self.scorm_file_meta.get('last_updated', ''),
+                'scorm_data': default_storage.url(self._file_storage_path()),
+                'size': self.scorm_file_meta.get('size', 0)}
 
     @staticmethod
     def workbench_scenarios():
