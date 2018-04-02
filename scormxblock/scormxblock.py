@@ -196,7 +196,7 @@ class ScormXBlock(XBlock):
             context.update({"lesson_score": self.lesson_score})
 
         elif name == 'cmi.core.lesson_location':
-            self.lesson_location = data.get('value', '')
+            self.lesson_location = str(data.get('value', ''))
 
         elif name == 'cmi.suspend_data':
             self.suspend_data = data.get('value', '')
@@ -284,9 +284,10 @@ class ScormXBlock(XBlock):
 
             if resource:
                 path_index_page = resource.get('href')
-
             if (schemaversion is not None) and (re.match('^1.2$', schemaversion.text) is None):
                 self.version_scorm = 'SCORM_2004'
+            else:
+                self.version_scorm = 'SCORM_12'
 
         self.scorm_file = os.path.join(SCORM_URL, '{}/{}'.format(self.location.block_id, path_index_page))
 
