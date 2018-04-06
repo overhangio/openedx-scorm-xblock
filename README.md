@@ -15,6 +15,13 @@ Install package
 
     pip install -e git+https://github.com/raccoongang/edx_xblock_scorm.git#egg=edx_xblock_scorm
 
+Note: for OpenEdx releases prior ginkgo add required variables to CMS configuration ```<edx-platform-path>/cms/envs/aws.py```:
+
+```
+MEDIA_ROOT = ENV_TOKENS.get('MEDIA_ROOT', '/edx/var/edxapp/media/')
+MEDIA_URL = ENV_TOKENS.get('MEDIA_URL', '/media/')
+```
+
 # Usage
 * Add `scormxblock` to the list of advanced modules in the advanced settings of a course.
 * Add a `scorm` component to your Unit. 
