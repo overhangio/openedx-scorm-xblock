@@ -59,14 +59,6 @@ class ScormXBlock(XBlock):
         scope=Scope.user_state,
         default='unknown'
     )
-    lesson_location = String(
-        scope=Scope.user_state,
-        default=''
-    )
-    suspend_data = String(
-        scope=Scope.user_state,
-        default=''
-    )
     data_scorm = Dict(
         scope=Scope.user_state,
         default={}
@@ -165,10 +157,8 @@ class ScormXBlock(XBlock):
             return {'value': self.lesson_status}
         elif name == 'cmi.success_status':
             return {'value': self.success_status}
-        elif name == 'cmi.core.lesson_location':
-            return {'value': self.lesson_location}
-        elif name == 'cmi.suspend_data':
-            return {'value': self.suspend_data}
+        elif name in ['cmi.core.score.raw', 'cmi.score.raw']:
+            return {'value': self.lesson_score * 100}
         else:
             return {'value': self.data_scorm.get(name, '')}
 
@@ -194,12 +184,6 @@ class ScormXBlock(XBlock):
         elif name in ['cmi.core.score.raw', 'cmi.score.raw'] and self.has_score:
             self.lesson_score = int(data.get('value', 0))/100.0
             context.update({"lesson_score": self.lesson_score})
-
-        elif name == 'cmi.core.lesson_location':
-            self.lesson_location = str(data.get('value', ''))
-
-        elif name == 'cmi.suspend_data':
-            self.suspend_data = data.get('value', '')
         else:
             self.data_scorm[name] = data.get('value', '')
 
@@ -207,7 +191,8 @@ class ScormXBlock(XBlock):
         return context
 
     def publish_grade(self):
-        if self.lesson_status == 'failed' or (self.version_scorm == 'SCORM_2004' and self.success_status in ['failed', 'unknown']):
+        if self.lesson_status == 'failed' or (self.version_scorm == 'SCORM_2004'
+                                              and self.success_status in ['failed', 'unknown']):
             self.runtime.publish(
                 self,
                 'grade',
