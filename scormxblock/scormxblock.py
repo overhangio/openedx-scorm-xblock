@@ -325,7 +325,7 @@ class ScormXBlock(XBlock):
         Inform REST api clients about original file location and it's "freshness".
         Make sure to include `student_view_data=scormxblock` to URL params in the request.
         """
-        if self.scorm_file:
+        if self.scorm_file and self.scorm_file_meta:
             return {'last_modified': self.scorm_file_meta.get('last_updated', ''),
                     'scorm_data': default_storage.url(self._file_storage_path()),
                     'size': self.scorm_file_meta.get('size', 0)}
