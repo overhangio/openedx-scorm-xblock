@@ -41,6 +41,8 @@ class ScormXBlockTests(unittest.TestCase):
         self.assertEqual(block.weight, 1)
         self.assertEqual(block.has_score, False)
         self.assertEqual(block.icon_class, 'video')
+        self.assertEqual(block.width, None)
+        self.assertEqual(block.height, 450)
 
     def test_save_settings_scorm(self):
         block = self.make_one()
@@ -48,13 +50,17 @@ class ScormXBlockTests(unittest.TestCase):
         fields = {
             'display_name': 'Test Block',
             'has_score': 'True',
-            'file': None
+            'file': None,
+            'width': 800,
+            'height': 450
         }
 
         block.studio_submit(mock.Mock(method="POST", params=fields))
         self.assertEqual(block.display_name, fields['display_name'])
         self.assertEqual(block.has_score, fields['has_score'])
         self.assertEqual(block.icon_class, 'problem')
+        self.assertEqual(block.width, 800)
+        self.assertEqual(block.height, 450)
 
     @freeze_time("2018-05-01")
     @mock.patch('scormxblock.ScormXBlock.set_fields_xblock')
@@ -77,7 +83,9 @@ class ScormXBlockTests(unittest.TestCase):
         fields = {
             'display_name': 'Test Block',
             'has_score': 'True',
-            'file': mock.Mock(file=mock_file_object)
+            'file': mock.Mock(file=mock_file_object),
+            'width': None,
+            'height': 450
         }
 
         block.studio_submit(mock.Mock(method="POST", params=fields))

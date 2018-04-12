@@ -18,7 +18,7 @@ from webob import Response
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 from xblock.core import XBlock
-from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime
+from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
 from xblock.fragment import Fragment
 
 
@@ -81,6 +81,17 @@ class ScormXBlock(XBlock):
         default="video",
         scope=Scope.settings,
     )
+    width = Integer(
+        display_name=_("Display Width (px)"),
+        help=_('Width of iframe, if empty, the default 100%'),
+        scope=Scope.settings
+    )
+    height = Integer(
+        display_name=_("Display Height (px)"),
+        help=_('Height of iframe'),
+        default=450,
+        scope=Scope.settings
+    )
 
     has_author_view = True
 
@@ -118,6 +129,8 @@ class ScormXBlock(XBlock):
     @XBlock.handler
     def studio_submit(self, request, suffix=''):
         self.display_name = request.params['display_name']
+        self.width = request.params['width']
+        self.height = request.params['height']
         self.has_score = request.params['has_score']
         self.icon_class = 'problem' if self.has_score == 'True' else 'video'
 
@@ -220,6 +233,8 @@ class ScormXBlock(XBlock):
             'field_display_name': self.fields['display_name'],
             'field_scorm_file': self.fields['scorm_file'],
             'field_has_score': self.fields['has_score'],
+            'field_width': self.fields['width'],
+            'field_height': self.fields['height'],
             'scorm_xblock': self
         }
 
@@ -235,10 +250,8 @@ class ScormXBlock(XBlock):
 
         return {
             'scorm_file_path': scorm_file_path,
-            'lesson_score': self.lesson_score,
-            'weight': self.weight,
-            'has_score': self.has_score,
-            'completion_status': self.get_completion_status()
+            'completion_status': self.get_completion_status(),
+            'scorm_xblock': self
         }
 
     def render_template(self, template_path, context):

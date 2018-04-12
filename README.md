@@ -27,3 +27,10 @@ MEDIA_URL = ENV_TOKENS.get('MEDIA_URL', '/media/')
 * Add a `scorm` component to your Unit. 
 * Upload a zip file containint your content package.  The `imsmanifest.xml` file must be at the root of the zipped package (i.e., make sure you don't have an additional directory at the root of the Zip archive which can handle if e.g., you select an entire folder and use Mac OS X's compress feature).
 * Publish your content as usual.
+
+Testing
+-------
+
+Assuming `scormxblock` is installed as above, you can run tests like so:
+
+    $ paver test_system -s lms -t scormxblock
