@@ -193,9 +193,9 @@ class ScormXBlock(XBlock):
                     self.lesson_score = 0
                 self.publish_grade()
                 context.update({"lesson_score": self.lesson_score})
-
         elif name in ['cmi.core.score.raw', 'cmi.score.raw'] and self.has_score:
             self.lesson_score = int(data.get('value', 0))/100.0
+            self.publish_grade()
             context.update({"lesson_score": self.lesson_score})
         else:
             self.data_scorm[name] = data.get('value', '')
