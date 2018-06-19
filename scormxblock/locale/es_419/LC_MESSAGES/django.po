@@ -1,0 +1,55 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2018-05-31 16:02-0500\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: es_419\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: scormxblock.py:39
+msgid "Display name for this module"
+msgstr "Nombre visualizado para este módulo"
+
+#: scormxblock.py:44
+msgid "Upload scorm file"
+msgstr "Subir archivo scorm"
+
+#: scormxblock.py:57
+msgid "not attempted"
+msgstr "No intentado"
+
+#: scormxblock.py:77
+msgid "Select False if this component will not receive a numerical score from the Scorm"
+msgstr "Seleccione Falso si este componente no recibirá una puntuación numérica del Scorm"
+
+#: scormxblock.py:86
+msgid "Display Width (px)"
+msgstr "Ancho de pantalla (px)"
+
+#: scormxblock.py:87
+msgid "Width of iframe, if empty, the default 100%"
+msgstr "Ancho del iframe, si está vacío, el valor predeterminado es 100%"
+
+#: scormxblock.py:91
+msgid "Display Height (px)"
+msgstr "Altura de pantalla (px)"
+
+#: scormxblock.py:92
+msgid "Height of iframe"
+msgstr "Altura del iframe"
+
+#: static/html/author_view.html:3
+msgid "Look in LMS"
+msgstr "Ver en LMS"
+

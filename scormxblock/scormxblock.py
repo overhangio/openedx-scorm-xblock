@@ -22,6 +22,7 @@ from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
 from xblock.fragment import Fragment
 
 
+
 # Make '_' a no-op so we can scrape strings
 _ = lambda text: text
 
@@ -73,8 +74,8 @@ class ScormXBlock(XBlock):
     )
     has_score = Boolean(
         display_name=_("Scored"),
-        help=_("Select True if this component will receive a numerical score from the Scorm"),
-        default=False,
+        help=_("Select False if this component will not receive a numerical score from the Scorm"),
+        default=True,
         scope=Scope.settings
     )
     icon_class = String(
@@ -121,8 +122,8 @@ class ScormXBlock(XBlock):
         frag.initialize_js('ScormStudioXBlock')
         return frag
 
-    def author_view(self, context):
-        html = self.resource_string("static/html/author_view.html")
+    def author_view(self, context=None):
+        html = self.render_template("static/html/author_view.html", context)
         frag = Fragment(html)
         return frag
 
