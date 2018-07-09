@@ -4,7 +4,6 @@ import re
 import os
 import logging
 import pkg_resources
-import zipfile
 import shutil
 import xml.etree.ElementTree as ET
 
@@ -152,13 +151,22 @@ class ScormXBlock(XBlock):
             log.info('"{}" file stored at "{}"'.format(scorm_file, path))
 
             # Now unpack it into SCORM_ROOT to serve to students later
-            zip_file = zipfile.ZipFile(scorm_file, 'r')
             path_to_file = os.path.join(SCORM_ROOT, self.location.block_id)
 
             if os.path.exists(path_to_file):
                 shutil.rmtree(path_to_file)
 
-            zip_file.extractall(path_to_file)
+            if hasattr(scorm_file, 'temporary_file_path'):
+                os.system('unzip {} -d {}'.format(scorm_file.temporary_file_path(), path_to_file))
+            else:
+                temporary_path = os.path.join(SCORM_ROOT, scorm_file.name)
+                temporary_zip = open(temporary_path, 'wb')
+                scorm_file.open()
+                temporary_zip.write(scorm_file.read())
+                temporary_zip.close()
+                os.system('unzip {} -d {}'.format(temporary_path, path_to_file))
+                os.remove(temporary_path)
+
             self.set_fields_xblock(path_to_file)
 
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
