@@ -150,6 +150,10 @@ class ScormXBlock(XBlock):
             self.scorm_file_meta['size'] = default_storage.size(path)
             log.info('"{}" file stored at "{}"'.format(scorm_file, path))
 
+            # Check whether SCORM_ROOT exists
+            if not os.path.exists(SCORM_ROOT):
+                os.mkdir(SCORM_ROOT)
+
             # Now unpack it into SCORM_ROOT to serve to students later
             path_to_file = os.path.join(SCORM_ROOT, self.location.block_id)
 
