@@ -43,6 +43,10 @@ class ScormXBlock(XBlock):
         display_name=_("Upload scorm file"),
         scope=Scope.settings,
     )
+    path_index_page = String(
+        display_name=_("Path to the index page in scorm file"),
+        scope=Scope.settings,
+    )
     scorm_file_meta = Dict(
         scope=Scope.content
     )
@@ -273,7 +277,7 @@ class ScormXBlock(XBlock):
         return template.render(Context(context))
 
     def set_fields_xblock(self, path_to_file):
-        path_index_page = 'index.html'
+        self.path_index_page = 'index.html'
         try:
             tree = ET.parse('{}/imsmanifest.xml'.format(path_to_file))
         except IOError:
@@ -294,13 +298,13 @@ class ScormXBlock(XBlock):
                 schemaversion = root.find('metadata/schemaversion')
 
             if resource:
-                path_index_page = resource.get('href')
+                self.path_index_page = resource.get('href')
             if (schemaversion is not None) and (re.match('^1.2$', schemaversion.text) is None):
                 self.version_scorm = 'SCORM_2004'
             else:
                 self.version_scorm = 'SCORM_12'
 
-        self.scorm_file = os.path.join(SCORM_URL, '{}/{}'.format(self.location.block_id, path_index_page))
+        self.scorm_file = os.path.join(SCORM_URL, '{}/{}'.format(self.location.block_id, self.path_index_page))
 
     def get_completion_status(self):
         completion_status = self.lesson_status
@@ -339,9 +343,12 @@ class ScormXBlock(XBlock):
         Make sure to include `student_view_data=scormxblock` to URL params in the request.
         """
         if self.scorm_file and self.scorm_file_meta:
-            return {'last_modified': self.scorm_file_meta.get('last_updated', ''),
-                    'scorm_data': default_storage.url(self._file_storage_path()),
-                    'size': self.scorm_file_meta.get('size', 0)}
+            return {
+                'last_modified': self.scorm_file_meta.get('last_updated', ''),
+                'scorm_data': default_storage.url(self._file_storage_path()),
+                'size': self.scorm_file_meta.get('size', 0),
+                'index_page': self.path_index_page,
+            }
         return {}
 
     @staticmethod
