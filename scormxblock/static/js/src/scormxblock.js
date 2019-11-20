@@ -73,6 +73,10 @@ function ScormXBlock(runtime, element, settings) {
   };
 
   var SetValue = function (cmi_element, value) {
+    if (cmi_element === 'cmi.core.exit' || cmi_element === 'cmi.exit') {
+      $(".js-scorm-block", element).removeClass('full-screen-scorm');
+    }
+
     var handlerUrl = runtime.handlerUrl( element, 'scorm_set_value');
 
     $.ajax({
@@ -97,5 +101,10 @@ function ScormXBlock(runtime, element, settings) {
     } else {
       API_1484_11 = new SCORM_2004_API();
     }
+
+    var $scormBlock = $(".js-scorm-block", element);
+    $('.js-button-full-screen', element).on( "click", function() {
+      $scormBlock.toggleClass("full-screen-scorm");
+    });
   });
 }

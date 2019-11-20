@@ -9,6 +9,7 @@ function ScormStudioXBlock(runtime, element) {
     var has_score = $(element).find('select[name=has_score]').val();
     var width = $(element).find('input[name=width]').val();
     var height = $(element).find('input[name=height]').val();
+
     form_data.append('file', file_data);
     form_data.append('display_name', display_name);
     form_data.append('has_score', has_score);
