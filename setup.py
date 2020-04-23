@@ -21,23 +21,13 @@ def package_data(pkg, roots):
 
 
 setup(
-    name='scormxblock-xblock',
-    version='0.5',
-    description='scormxblock XBlock',   # TODO: write a better description.
-    packages=[
-        'scormxblock',
-    ],
-    install_requires=[
-        'XBlock',
-    ],
-    entry_points={
-        'xblock.v1': [
-            'scormxblock = scormxblock:ScormXBlock',
-        ]
-    },
+    name="scormxblock-xblock",
+    version="0.5",
+    description="scormxblock XBlock",  # TODO: write a better description.
+    packages=["scormxblock"],
+    install_requires=["XBlock"],
+    entry_points={"xblock.v1": ["scormxblock = scormxblock:ScormXBlock"]},
     package_data=package_data("scormxblock", ["static", "public", "locale"]),
     license="Apache",
-    classifiers=[
-        "License :: OSI Approved :: Apache Software License",
-    ]
+    classifiers=["License :: OSI Approved :: Apache Software License"],
 )
