@@ -28,11 +28,26 @@ def _(text):
 
 logger = logging.getLogger(__name__)
 
-SCORM_ROOT = os.path.join(settings.MEDIA_ROOT, "scorm")
-SCORM_URL = os.path.join(settings.MEDIA_URL, "scorm")
 
-
+@XBlock.wants("settings")
 class ScormXBlock(XBlock):
+    """
+    When a user uploads a Scorm package, the zip file is stored in:
+
+        media/{org}/{course}/{block_type}/{block_id}/{sha1}{ext}
+
+    This zip file is then extracted to the media/{scorm_location}/{block_id}.
+
+    The scorm location is defined by the LOCATION xblock setting. If undefined, this is
+    "scorm". This setting can be set e.g:
+
+        XBLOCK_SETTINGS["ScormXBlock"] = {
+            "LOCATION": "alternatevalue",
+        }
+
+    Note that neither the folder the folder nor the package file are deleted when the
+    xblock is removed.
+    """
 
     display_name = String(
         display_name=_("Display Name"),
@@ -152,16 +167,15 @@ class ScormXBlock(XBlock):
         default_storage.save(self.package_path, File(package_file))
         logger.info('Scorm "%s" file stored at "%s"', package_file, self.package_path)
 
-        # Check whether SCORM_ROOT exists
-        # TODO do not rely on local storage, always use django storage
-        if not os.path.exists(SCORM_ROOT):
-            os.mkdir(SCORM_ROOT)
-
-        # Now unpack it into SCORM_ROOT to serve to students later
-        extract_folder_path = os.path.join(SCORM_ROOT, self.location.block_id)
+        # Unpack zip package into the scorm media folder to serve to students later
+        extract_folder_path = os.path.join(
+            settings.MEDIA_ROOT, self.scorm_location(), self.location.block_id
+        )
 
         if os.path.exists(extract_folder_path):
             shutil.rmtree(extract_folder_path)
+        else:
+            os.makedirs(extract_folder_path)
 
         with zipfile.ZipFile(package_file, "r") as scorm_zipfile:
             scorm_zipfile.extractall(extract_folder_path)
@@ -198,7 +212,6 @@ class ScormXBlock(XBlock):
             ]:
                 self.publish_grade()
                 context.update({"lesson_score": self.lesson_score})
-
         elif name == "cmi.success_status":
             self.success_status = data.get("value")
             if self.has_score:
@@ -304,11 +317,30 @@ class ScormXBlock(XBlock):
             completion_status = self.success_status
         return completion_status
 
+    def scorm_location(self):
+        """
+        Unzipped files will be stored in a media folder with this name, and thus
+        accessible at a url with that also includes this name.
+        """
+        default_scorm_location = "scorm"
+        settings_service = self.runtime.service(self, "settings")
+        if not settings_service:
+            return default_scorm_location
+        xblock_settings = settings_service.get_settings_bucket(self)
+        return xblock_settings.get("LOCATION", default_scorm_location)
+
     @property
     def package_url(self):
-        if not self.package_meta:
+        if not self.package_meta or not self.index_page_path:
             return ""
-        return "/".join([SCORM_URL, self.location.block_id, self.index_page_path])
+        return "/".join(
+            [
+                settings.MEDIA_URL,
+                self.scorm_location(),
+                self.location.block_id,
+                self.index_page_path,
+            ]
+        )
 
     @property
     def package_path(self):
