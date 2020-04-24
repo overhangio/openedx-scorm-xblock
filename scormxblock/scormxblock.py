@@ -4,7 +4,6 @@ import hashlib
 import os
 import logging
 import re
-import shutil
 import xml.etree.ElementTree as ET
 import zipfile
 
@@ -119,6 +118,8 @@ class ScormXBlock(XBlock):
         return frag
 
     def studio_view(self, context=None):
+        # Note that we could make this xblock editable so that we wouldn't need to
+        # create a manual studio view.
         context = self.get_context_studio()
         template = self.render_template("static/html/studio.html", context)
         frag = Fragment(template)
@@ -156,36 +157,35 @@ class ScormXBlock(XBlock):
         self.update_package_meta(package_file)
 
         # First, save scorm file in the storage for mobile clients
-        # TODO This is an issue:
-        # - when uploading files twice from two different xblocks, they will both be saved in the same location
-        # - when a scorm package is replaced, the older zip package is not deleted
-        # - when an xblock is deleted, the content should be deleted with it
         if default_storage.exists(self.package_path):
             logger.info('Removing previously uploaded "%s"', self.package_path)
             default_storage.delete(self.package_path)
-
         default_storage.save(self.package_path, File(package_file))
         logger.info('Scorm "%s" file stored at "%s"', package_file, self.package_path)
 
-        # Unpack zip package into the scorm media folder to serve to students later
-        extract_folder_path = os.path.join(
-            settings.MEDIA_ROOT, self.scorm_location(), self.location.block_id
-        )
-
-        if os.path.exists(extract_folder_path):
-            shutil.rmtree(extract_folder_path)
-        else:
-            os.makedirs(extract_folder_path)
-
+        # Then, extract zip file
+        if default_storage.exists(self.extract_folder_base_path):
+            logger.info(
+                'Removing previously unzipped "%s"', self.extract_folder_base_path
+            )
+            recursive_delete(self.extract_folder_base_path)
         with zipfile.ZipFile(package_file, "r") as scorm_zipfile:
-            scorm_zipfile.extractall(extract_folder_path)
+            for zipinfo in scorm_zipfile.infolist():
+                default_storage.save(
+                    os.path.join(self.extract_folder_base_path, zipinfo.filename),
+                    scorm_zipfile.open(zipinfo.filename),
+                )
 
         try:
-            self.update_package_fields(extract_folder_path)
+            self.update_package_fields()
         except ScormError as e:
             response["errors"].append(e.args[0])
 
         return self.json_response(response)
+
+    @property
+    def extract_folder_base_path(self):
+        return os.path.join(self.scorm_location(), self.location.block_id)
 
     @XBlock.json_handler
     def scorm_get_value(self, data, _suffix):
@@ -271,22 +271,26 @@ class ScormXBlock(XBlock):
         self.package_meta["size"] = package_file.seek(0, 2)
         package_file.seek(0)
 
-    def update_package_fields(self, path):
+    def update_package_fields(self):
         """
         Update version and index page path fields.
         """
         self.index_page_path = ""
-        imsmanifest_path = os.path.join(path, "imsmanifest.xml")
+        imsmanifest_path = os.path.join(
+            self.extract_folder_base_path, "imsmanifest.xml"
+        )
         try:
-            tree = ET.parse(imsmanifest_path)
+            imsmanifest_file = default_storage.open(imsmanifest_path)
         except IOError:
             raise ScormError(
                 "Invalid package: could not find 'imsmanifest.xml' file at the root of the zip file"
             )
         else:
+            tree = ET.parse(imsmanifest_file)
+            imsmanifest_file.seek(0)
             self.index_page_path = "index.html"
             namespace = ""
-            for _, node in ET.iterparse(imsmanifest_path, events=["start-ns"]):
+            for _, node in ET.iterparse(imsmanifest_file, events=["start-ns"]):
                 if node[0] == "":
                     namespace = node[1]
                     break
@@ -394,6 +398,19 @@ class ScormXBlock(XBlock):
              """,
             ),
         ]
+
+
+def recursive_delete(root):
+    """
+    Recursively delete the contents of a directory in the Django default storage.
+    Unfortunately, this will not delete empty folders, as the default FileSystemStorage
+    implementation does not allow it.
+    """
+    directories, files = default_storage.listdir(root)
+    for directory in directories:
+        recursive_delete(os.path.join(root, directory))
+    for f in files:
+        default_storage.delete(os.path.join(root, f))
 
 
 class ScormError(Exception):

@@ -61,8 +61,6 @@ class ScormXBlockTests(unittest.TestCase):
 
     @freeze_time("2018-05-01")
     @mock.patch("scormxblock.ScormXBlock.update_package_fields")
-    @mock.patch("scormxblock.scormxblock.shutil")
-    @mock.patch("scormxblock.scormxblock.SCORM_ROOT")
     @mock.patch("scormxblock.scormxblock.os")
     @mock.patch("scormxblock.scormxblock.zipfile")
     @mock.patch("scormxblock.scormxblock.File", return_value="call_file")
@@ -79,8 +77,6 @@ class ScormXBlockTests(unittest.TestCase):
         mock_file,
         zipfile,
         mock_os,
-        SCORM_ROOT,
-        shutil,
         update_package_fields,
     ):
         block = self.make_one()
@@ -117,10 +113,7 @@ class ScormXBlockTests(unittest.TestCase):
         self.assertEqual(block.package_meta, expected_package_meta)
 
         zipfile.ZipFile.assert_called_once_with(mock_file_object, "r")
-        mock_os.path.join.assert_called_once_with(SCORM_ROOT, "block_id")
-        mock_os.path.exists.assert_called_once_with("path_join")
-        shutil.rmtree.assert_called_once_with("path_join")
-        update_package_fields.assert_called_once_with("path_join")
+        update_package_fields.assert_called_once_with()
 
     def test_build_file_storage_path(self):
         block = self.make_one(
