@@ -275,7 +275,7 @@ class ScormXBlock(XBlock):
         """
         Update version and index page path fields.
         """
-        self.index_page_path = "index.html"
+        self.index_page_path = ""
         imsmanifest_path = os.path.join(path, "imsmanifest.xml")
         try:
             tree = ET.parse(imsmanifest_path)
@@ -284,6 +284,7 @@ class ScormXBlock(XBlock):
                 "Invalid package: could not find 'imsmanifest.xml' file at the root of the zip file"
             )
         else:
+            self.index_page_path = "index.html"
             namespace = ""
             for _, node in ET.iterparse(imsmanifest_path, events=["start-ns"]):
                 if node[0] == "":
