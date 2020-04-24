@@ -265,17 +265,14 @@ class ScormXBlock(XBlock):
         self.index_page_path = "index.html"
         imsmanifest_path = os.path.join(path, "imsmanifest.xml")
         try:
-            tree = ET.parse("{}/imsmanifest.xml".format(path_to_file))
+            tree = ET.parse(imsmanifest_path)
         except IOError:
-            pass
+            raise ScormError(
+                "Invalid package: could not find 'imsmanifest.xml' file at the root of the zip file"
+            )
         else:
             namespace = ""
-            for node in [
-                node
-                for _, node in ET.iterparse(
-                    "{}/imsmanifest.xml".format(path_to_file), events=["start-ns"]
-                )
-            ]:
+            for _, node in ET.iterparse(imsmanifest_path, events=["start-ns"]):
                 if node[0] == "":
                     namespace = node[1]
                     break
@@ -364,3 +361,7 @@ class ScormXBlock(XBlock):
              """,
             ),
         ]
+
+
+class ScormError(Exception):
+    pass
