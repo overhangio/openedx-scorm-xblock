@@ -37,7 +37,7 @@ class ScormXBlock(XBlock):
     display_name = String(
         display_name=_("Display Name"),
         help=_("Display name for this module"),
-        default="Scorm",
+        default="Scorm module",
         scope=Scope.settings,
     )
     scorm_file = String(display_name=_("Upload scorm file"), scope=Scope.settings,)

@@ -1,5 +1,4 @@
-"""Setup for scormxblock XBlock."""
-
+import io
 import os
 from setuptools import setup
 
@@ -20,14 +19,30 @@ def package_data(pkg, roots):
     return {pkg: data}
 
 
+here = os.path.abspath(os.path.dirname(__file__))
+
+with io.open(os.path.join(here, "README.rst"), "rt", encoding="utf8") as f:
+    readme = f.read()
+
 setup(
-    name="scormxblock-xblock",
-    version="0.5",
-    description="scormxblock XBlock",  # TODO: write a better description.
+    name="openedx-scorm-xblock",
+    version="9.0.0",
+    description="Scorm XBlock for Open edX",
+    long_description=readme,
+    long_description_content_type="text/x-rst",
+    author="Overhang.io",
+    author_email="contact@overhang.io",
+    project_urls={
+        "Documentation": "https://github.com/overhangio/openedx-scorm-xblock",
+        "Code": "https://github.com/overhangio/openedx-scorm-xblock",
+        "Issue tracker": "https://github.com/overhangio/openedx-scorm-xblock/issues",
+        "Community": "https://discuss.overhang.io",
+    },
     packages=["scormxblock"],
-    install_requires=["XBlock"],
-    entry_points={"xblock.v1": ["scormxblock = scormxblock:ScormXBlock"]},
+    python_requires="<3.0",
+    install_requires=["xblock"],
+    entry_points={"xblock.v1": ["scorm = scormxblock:ScormXBlock"]},
     package_data=package_data("scormxblock", ["static", "public", "locale"]),
-    license="Apache",
-    classifiers=["License :: OSI Approved :: Apache Software License"],
+    license="AGPLv3",
+    classifiers=["License :: OSI Approved :: GNU Affero General Public License v3"],
 )
