@@ -11,11 +11,11 @@
     </li>
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="scorm_file">{% trans field_scorm_file.display_name %}</label>
+        <label class="label setting-label" for="scorm_file">{% trans "Upload .zip package" %}</label>
         <input class="input setting-input" name="scorm_file" id="scorm_file" type="file" accept="application/zip" />
       </div>
-      {% if scorm_xblock.scorm_file_meta.name %}
-      <span class="tip setting-help setting-input-file"><span>{% trans "Currently:" %}</span> {{ scorm_xblock.scorm_file_meta.name }}</span>
+      {% if scorm_xblock.package_meta.name %}
+      <span class="tip setting-help setting-input-file"><span>{% trans "Currently:" %}</span> {{ scorm_xblock.package_meta.name }}</span>
       {% endif %}
     </li>
     <li class="field comp-setting-entry is-set">

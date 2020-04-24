@@ -96,7 +96,7 @@ function ScormXBlock(runtime, element, settings) {
   };
 
   $(function ($) {
-    if (settings.version_scorm == 'SCORM_12') {
+    if (settings.scorm_version == 'SCORM_12') {
       API = new SCORM_12_API();
     } else {
       API_1484_11 = new SCORM_2004_API();

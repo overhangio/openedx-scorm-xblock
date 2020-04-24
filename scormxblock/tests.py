@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import json
-
-import mock
 import unittest
+
 
 from ddt import ddt, data
 from freezegun import freeze_time
+import mock
 from xblock.field_data import DictFieldData
 
 from scormxblock import ScormXBlock
@@ -13,7 +13,8 @@ from scormxblock import ScormXBlock
 
 @ddt
 class ScormXBlockTests(unittest.TestCase):
-    def make_one(self, **kw):
+    @staticmethod
+    def make_one(**kw):
         """
         Creates a ScormXBlock for testing purpose.
         """
@@ -27,12 +28,12 @@ class ScormXBlockTests(unittest.TestCase):
     def test_fields_xblock(self):
         block = self.make_one()
         self.assertEqual(block.display_name, "Scorm")
-        self.assertEqual(block.scorm_file, None)
-        self.assertEqual(block.scorm_file_meta, {})
-        self.assertEqual(block.version_scorm, "SCORM_12")
+        self.assertEqual(block.package_url, "")
+        self.assertEqual(block.package_meta, {})
+        self.assertEqual(block.scorm_version, "SCORM_12")
         self.assertEqual(block.lesson_status, "not attempted")
         self.assertEqual(block.success_status, "unknown")
-        self.assertEqual(block.data_scorm, {})
+        self.assertEqual(block.scorm_data, {})
         self.assertEqual(block.lesson_score, 0)
         self.assertEqual(block.weight, 1)
         self.assertEqual(block.has_score, False)
@@ -59,7 +60,7 @@ class ScormXBlockTests(unittest.TestCase):
         self.assertEqual(block.height, 450)
 
     @freeze_time("2018-05-01")
-    @mock.patch("scormxblock.ScormXBlock.set_fields_xblock")
+    @mock.patch("scormxblock.ScormXBlock.update_package_fields")
     @mock.patch("scormxblock.scormxblock.shutil")
     @mock.patch("scormxblock.scormxblock.SCORM_ROOT")
     @mock.patch("scormxblock.scormxblock.os")
@@ -80,7 +81,7 @@ class ScormXBlockTests(unittest.TestCase):
         mock_os,
         SCORM_ROOT,
         shutil,
-        set_fields_xblock,
+        update_package_fields,
     ):
         block = self.make_one()
         mock_file_object = mock.Mock()
@@ -98,7 +99,7 @@ class ScormXBlockTests(unittest.TestCase):
 
         block.studio_submit(mock.Mock(method="POST", params=fields))
 
-        expected_scorm_file_meta = {
+        expected_package_meta = {
             "path": "file_storage_path",
             "sha1": "sha1",
             "name": "scorm_file_name",
@@ -113,20 +114,20 @@ class ScormXBlockTests(unittest.TestCase):
         default_storage.save.assert_called_once_with("file_storage_path", "call_file")
         mock_file.assert_called_once_with(mock_file_object)
 
-        self.assertEqual(block.scorm_file_meta, expected_scorm_file_meta)
+        self.assertEqual(block.package_meta, expected_package_meta)
 
         zipfile.ZipFile.assert_called_once_with(mock_file_object, "r")
         mock_os.path.join.assert_called_once_with(SCORM_ROOT, "block_id")
         mock_os.path.exists.assert_called_once_with("path_join")
         shutil.rmtree.assert_called_once_with("path_join")
-        set_fields_xblock.assert_called_once_with("path_join")
+        update_package_fields.assert_called_once_with("path_join")
 
     def test_build_file_storage_path(self):
         block = self.make_one(
-            scorm_file_meta={"sha1": "sha1", "name": "scorm_file_name.html"}
+            package_meta={"sha1": "sha1", "name": "scorm_file_name.html"}
         )
 
-        file_storage_path = block._file_storage_path()
+        file_storage_path = block.package_path
 
         self.assertEqual(file_storage_path, "org/course/block_type/block_id/sha1.html")
 
@@ -136,7 +137,7 @@ class ScormXBlockTests(unittest.TestCase):
     @mock.patch("scormxblock.scormxblock.default_storage")
     def test_student_view_data(self, default_storage, file_storage_path):
         block = self.make_one(
-            scorm_file_meta={"last_updated": "2018-05-01", "size": 1234}
+            package_meta={"last_updated": "2018-05-01", "size": 1234}
         )
         default_storage.configure_mock(url=mock.Mock(return_value="url_zip_file"))
 
@@ -229,7 +230,7 @@ class ScormXBlockTests(unittest.TestCase):
 
         get_completion_status.assert_called_once_with()
 
-        self.assertEqual(block.data_scorm[value["name"]], value["value"])
+        self.assertEqual(block.scorm_data[value["name"]], value["value"])
 
         self.assertEqual(
             response.json,
@@ -269,7 +270,7 @@ class ScormXBlockTests(unittest.TestCase):
     )
     def test_get_other_scorm_values(self, value):
         block = self.make_one(
-            data_scorm={
+            scorm_data={
                 "cmi.core.lesson_location": 1,
                 "cmi.location": 2,
                 "cmi.suspend_data": [1, 2],
@@ -280,4 +281,4 @@ class ScormXBlockTests(unittest.TestCase):
             mock.Mock(method="POST", body=json.dumps(value))
         )
 
-        self.assertEqual(response.json, {"value": block.data_scorm[value["name"]]})
+        self.assertEqual(response.json, {"value": block.scorm_data[value["name"]]})

@@ -1,7 +1,7 @@
 {% load i18n %}
 
 <div class="scormxblock_block">
-    {% if scorm_file_path %}
+    {% if package_url %}
 
     {% if scorm_xblock.has_score %}
     <p>
@@ -21,7 +21,7 @@
         </div>
 
         <iframe class="scorm_object"
-                src="{{ scorm_file_path }}"
+                src="{{ package_url }}"
                 width="{% if scorm_xblock.width %}{{ scorm_xblock.width }}{% else %}100%{% endif %}"
                 height="{{ scorm_xblock.height }}"
         ></iframe>
