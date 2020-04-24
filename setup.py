@@ -40,7 +40,7 @@ setup(
     },
     packages=["scormxblock"],
     python_requires="<3.0",
-    install_requires=["xblock"],
+    install_requires=["xblock", "web-fragments"],
     entry_points={"xblock.v1": ["scorm = scormxblock:ScormXBlock"]},
     package_data=package_data("scormxblock", ["static", "public", "locale"]),
     license="AGPLv3",

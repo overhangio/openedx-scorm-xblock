@@ -16,9 +16,9 @@ from django.utils import timezone
 from webob import Response
 import pkg_resources
 
+from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
-from xblock.fragment import Fragment
 
 
 # Make '_' a no-op so we can scrape strings
