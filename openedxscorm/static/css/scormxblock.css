@@ -1,19 +1,19 @@
 /* CSS for ScormXBlock */
-.scormxblock_block .scorm_object {
+.openedxscorm_block .scorm_object {
     border: none;
 }
 
-.scormxblock_block span.setting-input-file {
+.openedxscorm_block span.setting-input-file {
     padding-left: 25%;
     margin-left: 14px;
     padding-top: 5px;
 }
 
-.scormxblock_block span.setting-input-file span {
+.openedxscorm_block span.setting-input-file span {
     font-weight: bold;
 }
 
-.scormxblock_block .full-screen-scorm  .scorm_object {
+.openedxscorm_block .full-screen-scorm  .scorm_object {
     position: fixed;
     border: none;
     overflow: hidden;
@@ -26,7 +26,7 @@
     z-index: 10000;
 }
 
-.scormxblock_block .full-screen-scorm {
+.openedxscorm_block .full-screen-scorm {
     position: fixed;
     border: none;
     overflow: hidden;
@@ -40,22 +40,22 @@
     background-color: #ffffff;
 }
 
-.scormxblock_block .scorm_button {
+.openedxscorm_block .scorm_button {
     padding-bottom: 20px;
 }
 
-.scormxblock_block .full-screen-scorm .scorm_button {
+.openedxscorm_block .full-screen-scorm .scorm_button {
     padding: 20px;
 }
 
-.scormxblock_block .full-screen-off {
+.openedxscorm_block .full-screen-off {
     display: none;
 }
 
-.scormxblock_block .full-screen-scorm .full-screen-off {
+.openedxscorm_block .full-screen-scorm .full-screen-off {
     display: block;
 }
 
-.scormxblock_block .full-screen-scorm .full-screen-on {
+.openedxscorm_block .full-screen-scorm .full-screen-on {
     display: none;
 }

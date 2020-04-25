@@ -12,6 +12,8 @@ Currently supports SCORM 1.2 and SCORM 2004 standard.
 
 This XBlock was initially developed by `Raccoon Gang <https://raccoongang.com/>`__ and published as `edx_xblock_scorm <https://github.com/raccoongang/edx_xblock_scorm>`__. It was later improved, published on Pypi and relicensed as AGPLv3 thanks to the support of `Compliplus Ltd <https://compliplus.com/>`__.
 
+This XBlock is not compatible with its `ancestor <https://github.com/raccoongang/edx_xblock_scorm>`__: older xblocks cannot be simply migrated to the newer one. However, this xblock can be installed next to the other one and run on the same platform for easier transition.
+
 Installation
 ------------
 
@@ -42,7 +44,7 @@ Development
 
 Run unit tests with::
 
-    $ NO_PREREQ_INSTALL=1 paver test_system -s lms -t scormxblock
+    $ NO_PREREQ_INSTALL=1 paver test_system -s lms -t openedxscorm
 
 License
 -------

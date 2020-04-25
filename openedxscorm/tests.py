@@ -60,15 +60,15 @@ class ScormXBlockTests(unittest.TestCase):
         self.assertEqual(block.height, 450)
 
     @freeze_time("2018-05-01")
-    @mock.patch("scormxblock.ScormXBlock.update_package_fields")
-    @mock.patch("scormxblock.scormxblock.os")
-    @mock.patch("scormxblock.scormxblock.zipfile")
-    @mock.patch("scormxblock.scormxblock.File", return_value="call_file")
-    @mock.patch("scormxblock.scormxblock.default_storage")
+    @mock.patch("openedxscorm.ScormXBlock.update_package_fields")
+    @mock.patch("openedxscorm.scormxblock.os")
+    @mock.patch("openedxscorm.scormxblock.zipfile")
+    @mock.patch("openedxscorm.scormxblock.File", return_value="call_file")
+    @mock.patch("openedxscorm.scormxblock.default_storage")
     @mock.patch(
-        "scormxblock.ScormXBlock._file_storage_path", return_value="file_storage_path"
+        "openedxscorm.ScormXBlock._file_storage_path", return_value="file_storage_path"
     )
-    @mock.patch("scormxblock.ScormXBlock.get_sha1", return_value="sha1")
+    @mock.patch("openedxscorm.ScormXBlock.get_sha1", return_value="sha1")
     def test_save_scorm_zipfile(
         self,
         get_sha1,
@@ -125,9 +125,9 @@ class ScormXBlockTests(unittest.TestCase):
         self.assertEqual(file_storage_path, "org/course/block_type/block_id/sha1.html")
 
     @mock.patch(
-        "scormxblock.ScormXBlock._file_storage_path", return_value="file_storage_path"
+        "openedxscorm.ScormXBlock._file_storage_path", return_value="file_storage_path"
     )
-    @mock.patch("scormxblock.scormxblock.default_storage")
+    @mock.patch("openedxscorm.scormxblock.default_storage")
     def test_student_view_data(self, default_storage, file_storage_path):
         block = self.make_one(
             package_meta={"last_updated": "2018-05-01", "size": 1234}
@@ -144,10 +144,10 @@ class ScormXBlockTests(unittest.TestCase):
         )
 
     @mock.patch(
-        "scormxblock.ScormXBlock.get_completion_status",
+        "openedxscorm.ScormXBlock.get_completion_status",
         return_value="completion_status",
     )
-    @mock.patch("scormxblock.ScormXBlock.publish_grade")
+    @mock.patch("openedxscorm.ScormXBlock.publish_grade")
     @data(
         {"name": "cmi.core.lesson_status", "value": "completed"},
         {"name": "cmi.completion_status", "value": "failed"},
@@ -178,7 +178,7 @@ class ScormXBlockTests(unittest.TestCase):
         )
 
     @mock.patch(
-        "scormxblock.ScormXBlock.get_completion_status",
+        "openedxscorm.ScormXBlock.get_completion_status",
         return_value="completion_status",
     )
     @data(
@@ -206,7 +206,7 @@ class ScormXBlockTests(unittest.TestCase):
         )
 
     @mock.patch(
-        "scormxblock.ScormXBlock.get_completion_status",
+        "openedxscorm.ScormXBlock.get_completion_status",
         return_value="completion_status",
     )
     @data(

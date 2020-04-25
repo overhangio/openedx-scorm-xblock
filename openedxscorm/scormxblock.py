@@ -375,7 +375,7 @@ class ScormXBlock(XBlock):
     def student_view_data(self):
         """
         Inform REST api clients about original file location and it's "freshness".
-        Make sure to include `student_view_data=scormxblock` to URL params in the request.
+        Make sure to include `student_view_data=openedxscorm` to URL params in the request.
         """
         if self.package_url:
             return {
@@ -393,7 +393,7 @@ class ScormXBlock(XBlock):
             (
                 "ScormXBlock",
                 """<vertical_demo>
-                <scormxblock/>
+                <openedxscorm/>
                 </vertical_demo>
              """,
             ),
