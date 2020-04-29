@@ -91,10 +91,7 @@ class ScormXBlock(XBlock):
         scope=Scope.settings,
     )
 
-    # Previously, this was set to True and prevented viewing scorm content in the
-    # studio. This is an attempt to detect what might not work.
-    has_author_view = False
-    # has_author_view = True
+    has_author_view = True
 
     def render_template(self, template_path, context):
         template_str = self.resource_string(template_path)
@@ -106,9 +103,18 @@ class ScormXBlock(XBlock):
         data = pkg_resources.resource_string(__name__, path)
         return data.decode("utf8")
 
+    def author_view(self, context=None):
+        context = context or {}
+        if not self.index_page_path:
+            context[
+                "message"
+            ] = "Click 'Edit' to modify this module and upload a new SCORM package."
+        return self.student_view(context=context)
+
     def student_view(self, context=None):
-        context = self.get_context_student()
-        template = self.render_template("static/html/scormxblock.html", context)
+        student_context = self.get_context_student()
+        student_context.update(context or {})
+        template = self.render_template("static/html/scormxblock.html", student_context)
         frag = Fragment(template)
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/scormxblock.js"))
@@ -126,14 +132,6 @@ class ScormXBlock(XBlock):
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/studio.js"))
         frag.initialize_js("ScormStudioXBlock")
-        return frag
-
-    def author_view(self, context=None):
-        """
-        Obsolete: this view is used when has_author_view==True.
-        """
-        html = self.render_template("static/html/author_view.html", context)
-        frag = Fragment(html)
         return frag
 
     @staticmethod
