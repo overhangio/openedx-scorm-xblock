@@ -98,7 +98,8 @@ class ScormXBlock(XBlock):
         template = Template(template_str)
         return template.render(Context(context))
 
-    def resource_string(self, path):
+    @staticmethod
+    def resource_string(path):
         """Handy helper for getting static resources from our kit."""
         data = pkg_resources.resource_string(__name__, path)
         return data.decode("utf8")
@@ -170,7 +171,7 @@ class ScormXBlock(XBlock):
         with zipfile.ZipFile(package_file, "r") as scorm_zipfile:
             for zipinfo in scorm_zipfile.infolist():
                 default_storage.save(
-                    os.path.join(self.extract_folder_base_path, zipinfo.filename),
+                    os.path.join(self.extract_folder_path, zipinfo.filename),
                     scorm_zipfile.open(zipinfo.filename),
                 )
 
@@ -182,7 +183,45 @@ class ScormXBlock(XBlock):
         return self.json_response(response)
 
     @property
+    def index_page_url(self):
+        if not self.package_meta or not self.index_page_path:
+            return ""
+        folder = self.extract_folder_path
+        if default_storage.exists(
+            os.path.join(self.extract_folder_base_path, self.index_page_path)
+        ):
+            # For backward-compatibility, we must handle the case when the xblock data
+            # is stored in the base folder.
+            folder = self.extract_folder_base_path
+            logger.warning("Serving SCORM content from old-style path: %s", folder)
+        return default_storage.url(os.path.join(folder, self.index_page_path))
+
+    @property
+    def package_path(self):
+        """
+        Get file path of storage.
+        """
+        return (
+            "{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}/{sha1}{ext}"
+        ).format(
+            loc=self.location,
+            sha1=self.package_meta["sha1"],
+            ext=os.path.splitext(self.package_meta["name"])[1],
+        )
+        
+    @property
+    def extract_folder_path(self):
+        """
+        This path needs to depend on the content of the scorm package. Otherwise,
+        served media files might become stale when the package is update.
+        """
+        return os.path.join(self.extract_folder_base_path, self.package_meta["sha1"])
+
+    @property
     def extract_folder_base_path(self):
+        """
+        Path to the folder where packages will be extracted.
+        """
         return os.path.join(self.scorm_location(), self.location.block_id)
 
     @XBlock.json_handler
@@ -255,7 +294,7 @@ class ScormXBlock(XBlock):
 
     def get_context_student(self):
         return {
-            "package_url": self.package_url,
+            "index_page_url": self.index_page_url,
             "completion_status": self.get_completion_status(),
             "scorm_xblock": self,
         }
@@ -274,9 +313,7 @@ class ScormXBlock(XBlock):
         Update version and index page path fields.
         """
         self.index_page_path = ""
-        imsmanifest_path = os.path.join(
-            self.extract_folder_base_path, "imsmanifest.xml"
-        )
+        imsmanifest_path = os.path.join(self.extract_folder_path, "imsmanifest.xml")
         try:
             imsmanifest_file = default_storage.open(imsmanifest_path)
         except IOError:
@@ -332,32 +369,7 @@ class ScormXBlock(XBlock):
         xblock_settings = settings_service.get_settings_bucket(self)
         return xblock_settings.get("LOCATION", default_scorm_location)
 
-    @property
-    def package_url(self):
-        if not self.package_meta or not self.index_page_path:
-            return ""
-        return "/".join(
-            [
-                settings.MEDIA_URL,
-                self.scorm_location(),
-                self.location.block_id,
-                self.index_page_path,
-            ]
-        )
-
-    @property
-    def package_path(self):
-        """
-        Get file path of storage.
-        """
-        return (
-            "{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}/{sha1}{ext}"
-        ).format(
-            loc=self.location,
-            sha1=self.package_meta["sha1"],
-            ext=os.path.splitext(self.package_meta["name"])[1],
-        )
-
+    
     @staticmethod
     def get_sha1(file_descriptor):
         """
@@ -375,7 +387,7 @@ class ScormXBlock(XBlock):
         Inform REST api clients about original file location and it's "freshness".
         Make sure to include `student_view_data=openedxscorm` to URL params in the request.
         """
-        if self.package_url:
+        if self.index_page_url:
             return {
                 "last_modified": self.package_meta.get("last_updated", ""),
                 "scorm_data": default_storage.url(self.package_path),

@@ -28,7 +28,7 @@ class ScormXBlockTests(unittest.TestCase):
     def test_fields_xblock(self):
         block = self.make_one()
         self.assertEqual(block.display_name, "Scorm")
-        self.assertEqual(block.package_url, "")
+        self.assertEqual(block.index_page_url, "")
         self.assertEqual(block.package_meta, {})
         self.assertEqual(block.scorm_version, "SCORM_12")
         self.assertEqual(block.lesson_status, "not attempted")
