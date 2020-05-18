@@ -26,7 +26,7 @@ with io.open(os.path.join(here, "README.rst"), "rt", encoding="utf8") as f:
 
 setup(
     name="openedx-scorm-xblock",
-    version="9.2.0",
+    version="10.0.0",
     description="Scorm XBlock for Open edX",
     long_description=readme,
     long_description_content_type="text/x-rst",
@@ -39,7 +39,7 @@ setup(
         "Community": "https://discuss.overhang.io",
     },
     packages=["openedxscorm"],
-    python_requires="<3.0",
+    python_requires=">=3.5",
     install_requires=["xblock", "web-fragments"],
     entry_points={"xblock.v1": ["scorm = openedxscorm:ScormXBlock"]},
     package_data=package_data("openedxscorm", ["static", "public", "locale"]),

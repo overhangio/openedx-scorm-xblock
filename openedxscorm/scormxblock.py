@@ -1,4 +1,3 @@
-from functools import partial
 import json
 import hashlib
 import os
@@ -7,7 +6,6 @@ import re
 import xml.etree.ElementTree as ET
 import zipfile
 
-from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.template import Context, Template
@@ -18,7 +16,6 @@ import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
-
 
 # Make '_' a no-op so we can scrape strings
 def _(text):
@@ -137,7 +134,9 @@ class ScormXBlock(XBlock):
 
     @staticmethod
     def json_response(data):
-        return Response(json.dumps(data), content_type="application/json")
+        return Response(
+            json.dumps(data), content_type="application/json", charset="utf8"
+        )
 
     @XBlock.handler
     def studio_submit(self, request, _suffix):
@@ -208,7 +207,7 @@ class ScormXBlock(XBlock):
             sha1=self.package_meta["sha1"],
             ext=os.path.splitext(self.package_meta["name"])[1],
         )
-        
+
     @property
     def extract_folder_path(self):
         """
@@ -383,7 +382,10 @@ class ScormXBlock(XBlock):
         """
         block_size = 8 * 1024
         sha1 = hashlib.sha1()
-        for block in iter(partial(file_descriptor.read, block_size), ""):
+        while True:
+            block = file_descriptor.read(block_size)
+            if not block:
+                break
             sha1.update(block)
         file_descriptor.seek(0)
         return sha1.hexdigest()

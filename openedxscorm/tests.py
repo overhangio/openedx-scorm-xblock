@@ -8,7 +8,7 @@ from freezegun import freeze_time
 import mock
 from xblock.field_data import DictFieldData
 
-from scormxblock import ScormXBlock
+from .scormxblock import ScormXBlock
 
 
 @ddt
