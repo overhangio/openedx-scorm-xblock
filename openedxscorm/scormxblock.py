@@ -277,6 +277,12 @@ class ScormXBlock(XBlock):
                 self, "grade", {"value": self.lesson_score, "max_value": self.weight}
             )
 
+    def set_score(self, score):
+        """
+        Utility method used to rescore a problem.
+        """
+        self.lesson_score = score.raw_earned
+
     def max_score(self):
         """
         Return the maximum score possible.
