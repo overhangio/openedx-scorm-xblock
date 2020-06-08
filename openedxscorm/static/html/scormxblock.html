@@ -5,7 +5,7 @@
 
     {% if scorm_xblock.has_score %}
     <p>
-        (<span class="lesson_score">{{ scorm_xblock.lesson_score|floatformat }}</span>/{{ scorm_xblock.weight }} {% trans "points" %})
+        (<span class="lesson_score">{{ grade|floatformat }}</span>/{{ scorm_xblock.weight|floatformat }} {% trans "points" %})
         <span class="completion_status">{% trans completion_status %}</span>
     </p>
     {% endif %}
@@ -20,12 +20,8 @@
             </button>
         </div>
 
-        <iframe class="scorm_object"
-                src="{{ index_page_url }}"
-                width="{% if scorm_xblock.width %}{{ scorm_xblock.width }}{% else %}100%{% endif %}"
-                height="{{ scorm_xblock.height }}"
-        ></iframe>
-     </div>
+        <iframe class="scorm_object" src="{{ index_page_url }}" width="{% if scorm_xblock.width %}{{ scorm_xblock.width }}{% else %}100%{% endif %}" {% if scorm_xblock.height %}height="{{ scorm_xblock.height }}" {% endif %}></iframe>
+    </div>
     {% elif message %}
     <p>{{ message }}</p>
     {% endif %}

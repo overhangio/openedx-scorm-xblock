@@ -61,7 +61,12 @@ class ScormXBlock(XBlock):
     lesson_status = String(scope=Scope.user_state, default="not attempted")
     success_status = String(scope=Scope.user_state, default="unknown")
     lesson_score = Float(scope=Scope.user_state, default=0)
-    weight = Float(default=1, scope=Scope.settings)
+    weight = Float(
+        default=1,
+        display_name=_("Weight"),
+        help=_("Weight/Maximum grade"),
+        scope=Scope.settings,
+    )
     has_score = Boolean(
         display_name=_("Scored"),
         help=_(
@@ -110,7 +115,12 @@ class ScormXBlock(XBlock):
         return self.student_view(context=context)
 
     def student_view(self, context=None):
-        student_context = self.get_context_student()
+        student_context = {
+            "index_page_url": self.index_page_url,
+            "completion_status": self.get_completion_status(),
+            "grade": self.get_grade(),
+            "scorm_xblock": self,
+        }
         student_context.update(context or {})
         template = self.render_template("static/html/scormxblock.html", student_context)
         frag = Fragment(template)
@@ -122,10 +132,18 @@ class ScormXBlock(XBlock):
         return frag
 
     def studio_view(self, context=None):
-        # Note that we could make this xblock editable so that we wouldn't need to
-        # create a manual studio view.
-        context = self.get_context_studio()
-        template = self.render_template("static/html/studio.html", context)
+        # Note that we cannot use xblockutils's StudioEditableXBlockMixin because we
+        # need to support package file uploads.
+        studio_context = {
+            "field_display_name": self.fields["display_name"],
+            "field_has_score": self.fields["has_score"],
+            "field_weight": self.fields["weight"],
+            "field_width": self.fields["width"],
+            "field_height": self.fields["height"],
+            "scorm_xblock": self,
+        }
+        studio_context.update(context or {})
+        template = self.render_template("static/html/studio.html", studio_context)
         frag = Fragment(template)
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/studio.js"))
@@ -144,6 +162,7 @@ class ScormXBlock(XBlock):
         self.width = request.params["width"]
         self.height = request.params["height"]
         self.has_score = request.params["has_score"]
+        self.weight = request.params["weight"]
         self.icon_class = "problem" if self.has_score == "True" else "video"
 
         response = {"result": "success", "errors": []}
@@ -266,43 +285,30 @@ class ScormXBlock(XBlock):
         return context
 
     def publish_grade(self):
+        self.runtime.publish(
+            self, "grade", {"value": self.get_grade(), "max_value": self.weight},
+        )
+
+    def get_grade(self):
+        lesson_score = self.lesson_score
         if self.lesson_status == "failed" or (
             self.scorm_version == "SCORM_2004"
             and self.success_status in ["failed", "unknown"]
         ):
-            self.runtime.publish(self, "grade", {"value": 0, "max_value": self.weight})
-        else:
-            self.runtime.publish(
-                self, "grade", {"value": self.lesson_score, "max_value": self.weight}
-            )
+            lesson_score = 0
+        return lesson_score * self.weight
 
     def set_score(self, score):
         """
         Utility method used to rescore a problem.
         """
-        self.lesson_score = score.raw_earned
+        self.lesson_score = score.raw_earned / self.weight
 
     def max_score(self):
         """
         Return the maximum score possible.
         """
         return self.weight if self.has_score else None
-
-    def get_context_studio(self):
-        return {
-            "field_display_name": self.fields["display_name"],
-            "field_has_score": self.fields["has_score"],
-            "field_width": self.fields["width"],
-            "field_height": self.fields["height"],
-            "scorm_xblock": self,
-        }
-
-    def get_context_student(self):
-        return {
-            "index_page_url": self.index_page_url,
-            "completion_status": self.get_completion_status(),
-            "scorm_xblock": self,
-        }
 
     def update_package_meta(self, package_file):
         self.package_meta["sha1"] = self.get_sha1(package_file)
@@ -374,7 +380,6 @@ class ScormXBlock(XBlock):
         xblock_settings = settings_service.get_settings_bucket(self)
         return xblock_settings.get("LOCATION", default_scorm_location)
 
-    
     @staticmethod
     def get_sha1(file_descriptor):
         """

@@ -1,58 +1,71 @@
 {% load i18n %}
 
 <div class="wrapper-comp-settings is-active editor-with-buttons" id="settings-tab">
-  <ul class="list-input settings-list">
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="display_name">{% trans field_display_name.display_name %}</label>
-        <input class="input setting-input" name="display_name" id="display_name" value="{{ scorm_xblock.display_name }}" type="text" />
-      </div>
-      <span class="tip setting-help">{% trans field_display_name.help %}</span>
-    </li>
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="scorm_file">{% trans "Upload .zip package" %}</label>
-        <input class="input setting-input" name="scorm_file" id="scorm_file" type="file" accept="application/zip" />
-      </div>
-      {% if scorm_xblock.package_meta.name %}
-      <span class="tip setting-help setting-input-file"><span>{% trans "Currently:" %}</span> {{ scorm_xblock.package_meta.name }}</span>
-      {% endif %}
-    </li>
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="has_score">{% trans field_has_score.display_name %}</label>
-        <select name="has_score" id="has_score">
-          {% for option in field_has_score.values %}
-          <option value="{{ option.value }}" {% if option.value == scorm_xblock.has_score %}selected{% endif %}>{% trans option.display_name %}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <span class="tip setting-help">{% trans field_has_score.help %}</span>
-    </li>
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="width">{% trans field_width.display_name %}</label>
-        <input class="input setting-input" name="width" id="width" value="{{ scorm_xblock.width }}" type="number" />
-      </div>
-      <span class="tip setting-help">{% trans field_width.help %}</span>
-    </li>
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="height">{% trans field_height.display_name %}</label>
-        <input class="input setting-input" name="height" id="height" value="{{ scorm_xblock.height }}" type="number" />
-      </div>
-      <span class="tip setting-help">{% trans field_height.help %}</span>
-    </li>
+    <ul class="list-input settings-list">
 
-  </ul>
-  <div class="xblock-actions">
-    <ul>
-      <li class="action-item">
-        <a href="#" class="button action-primary save-button">{% trans "Save" %}</a>
-      </li>
-      <li class="action-item">
-        <a href="#" class="button cancel-button">{% trans "Cancel" %}</a>
-      </li>
+        <li class="field comp-setting-entry is-set">
+            <div class="wrapper-comp-setting">
+                <label class="label setting-label" for="display_name">{% trans field_display_name.display_name %}</label>
+                <input class="input setting-input" name="display_name" id="display_name" value="{{ scorm_xblock.display_name }}" type="text" />
+            </div>
+            <span class="tip setting-help">{% trans field_display_name.help %}</span>
+        </li>
+
+        <li class="field comp-setting-entry is-set">
+            <div class="wrapper-comp-setting">
+                <label class="label setting-label" for="scorm_file">{% trans "Upload .zip package" %}</label>
+                <input class="input setting-input" name="scorm_file" id="scorm_file" type="file" accept="application/zip" />
+            </div>
+            {% if scorm_xblock.package_meta.name %}
+            <span class="tip setting-help setting-input-file"><span>{% trans "Currently:" %}</span> {{ scorm_xblock.package_meta.name }}</span>
+            {% endif %}
+        </li>
+
+        <li class="field comp-setting-entry is-set">
+            <div class="wrapper-comp-setting">
+                <label class="label setting-label" for="has_score">{% trans field_has_score.display_name %}</label>
+                <select name="has_score" id="has_score">
+                    {% for option in field_has_score.values %}
+                    <option value="{{ option.value }}" {% if option.value == scorm_xblock.has_score %}selected{% endif %}>{% trans option.display_name %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <span class="tip setting-help">{% trans field_has_score.help %}</span>
+        </li>
+
+        <li class="field comp-setting-entry is-set">
+            <div class="wrapper-comp-setting">
+                <label class="label setting-label" for="weight">{% trans field_weight.display_name %}</label>
+                <input class="input setting-input" name="weight" id="weight" value="{{ scorm_xblock.weight }}" type="number" />
+            </div>
+            <span class="tip setting-help">{% trans field_weight.help %}</span>
+        </li>
+
+        <li class="field comp-setting-entry is-set">
+            <div class="wrapper-comp-setting">
+                <label class="label setting-label" for="width">{% trans field_width.display_name %}</label>
+                <input class="input setting-input" name="width" id="width" value="{{ scorm_xblock.width }}" type="number" />
+            </div>
+            <span class="tip setting-help">{% trans field_width.help %}</span>
+        </li>
+
+        <li class="field comp-setting-entry is-set">
+            <div class="wrapper-comp-setting">
+                <label class="label setting-label" for="height">{% trans field_height.display_name %}</label>
+                <input class="input setting-input" name="height" id="height" value="{{ scorm_xblock.height }}" type="number" />
+            </div>
+            <span class="tip setting-help">{% trans field_height.help %}</span>
+        </li>
     </ul>
-  </div>
+
+    <div class="xblock-actions">
+        <ul>
+            <li class="action-item">
+                <a href="#" class="button action-primary save-button">{% trans "Save" %}</a>
+            </li>
+            <li class="action-item">
+                <a href="#" class="button cancel-button">{% trans "Cancel" %}</a>
+            </li>
+        </ul>
+    </div>
 </div>
