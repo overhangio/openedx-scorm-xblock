@@ -188,10 +188,15 @@ class ScormXBlock(XBlock):
             recursive_delete(self.extract_folder_base_path)
         with zipfile.ZipFile(package_file, "r") as scorm_zipfile:
             for zipinfo in scorm_zipfile.infolist():
-                default_storage.save(
-                    os.path.join(self.extract_folder_path, zipinfo.filename),
-                    scorm_zipfile.open(zipinfo.filename),
-                )
+                # Do not unzip folders, only files. In Python 3.6 we will have access to
+                # the is_dir() method to verify whether a ZipInfo object points to a
+                # directory.
+                # https://docs.python.org/3.6/library/zipfile.html#zipfile.ZipInfo.is_dir
+                if not zipinfo.filename.endswith("/"):
+                    default_storage.save(
+                        os.path.join(self.extract_folder_path, zipinfo.filename),
+                        scorm_zipfile.open(zipinfo.filename),
+                    )
 
         try:
             self.update_package_fields()
