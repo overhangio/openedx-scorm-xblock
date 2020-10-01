@@ -174,14 +174,14 @@ class ScormXBlock(XBlock):
         self.update_package_meta(package_file)
 
         # First, save scorm file in the storage for mobile clients
-        if default_storage.exists(self.package_path):
+        if xblock_storage().exists(self.package_path):
             logger.info('Removing previously uploaded "%s"', self.package_path)
-            default_storage.delete(self.package_path)
-        default_storage.save(self.package_path, File(package_file))
+            xblock_storage().delete(self.package_path)
+        xblock_storage().save(self.package_path, File(package_file))
         logger.info('Scorm "%s" file stored at "%s"', package_file, self.package_path)
 
         # Then, extract zip file
-        if default_storage.exists(self.extract_folder_base_path):
+        if xblock_storage().exists(self.extract_folder_base_path):
             logger.info(
                 'Removing previously unzipped "%s"', self.extract_folder_base_path
             )
@@ -193,7 +193,7 @@ class ScormXBlock(XBlock):
                 # directory.
                 # https://docs.python.org/3.6/library/zipfile.html#zipfile.ZipInfo.is_dir
                 if not zipinfo.filename.endswith("/"):
-                    default_storage.save(
+                    xblock_storage().save(
                         os.path.join(self.extract_folder_path, zipinfo.filename),
                         scorm_zipfile.open(zipinfo.filename),
                     )
@@ -210,14 +210,14 @@ class ScormXBlock(XBlock):
         if not self.package_meta or not self.index_page_path:
             return ""
         folder = self.extract_folder_path
-        if default_storage.exists(
+        if xblock_storage().exists(
             os.path.join(self.extract_folder_base_path, self.index_page_path)
         ):
             # For backward-compatibility, we must handle the case when the xblock data
             # is stored in the base folder.
             folder = self.extract_folder_base_path
             logger.warning("Serving SCORM content from old-style path: %s", folder)
-        return default_storage.url(os.path.join(folder, self.index_page_path))
+        return xblock_storage().url(os.path.join(folder, self.index_page_path))
 
     @property
     def package_path(self):
@@ -331,7 +331,7 @@ class ScormXBlock(XBlock):
         self.index_page_path = ""
         imsmanifest_path = os.path.join(self.extract_folder_path, "imsmanifest.xml")
         try:
-            imsmanifest_file = default_storage.open(imsmanifest_path)
+            imsmanifest_file = xblock_storage().open(imsmanifest_path)
         except IOError:
             raise ScormError(
                 "Invalid package: could not find 'imsmanifest.xml' file at the root of the zip file"
@@ -408,7 +408,7 @@ class ScormXBlock(XBlock):
         if self.index_page_url:
             return {
                 "last_modified": self.package_meta.get("last_updated", ""),
-                "scorm_data": default_storage.url(self.package_path),
+                "scorm_data": xblock_storage().url(self.package_path),
                 "size": self.package_meta.get("size", 0),
                 "index_page": self.index_page_path,
             }
@@ -434,11 +434,18 @@ def recursive_delete(root):
     Unfortunately, this will not delete empty folders, as the default FileSystemStorage
     implementation does not allow it.
     """
-    directories, files = default_storage.listdir(root)
+    directories, files = xblock_storage().listdir(root)
     for directory in directories:
         recursive_delete(os.path.join(root, directory))
     for f in files:
-        default_storage.delete(os.path.join(root, f))
+        xblock_storage().delete(os.path.join(root, f))
+
+
+def xblock_storage():
+    """
+    Return the storage backend used to store the assets of this xblock.
+    """
+    return default_storage
 
 
 class ScormError(Exception):
