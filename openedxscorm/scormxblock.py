@@ -180,30 +180,59 @@ class ScormXBlock(XBlock):
         xblock_storage().save(self.package_path, File(package_file))
         logger.info('Scorm "%s" file stored at "%s"', package_file, self.package_path)
 
-        # Then, extract zip file
-        if xblock_storage().exists(self.extract_folder_base_path):
-            logger.info(
-                'Removing previously unzipped "%s"', self.extract_folder_base_path
-            )
-            recursive_delete(self.extract_folder_base_path)
-        with zipfile.ZipFile(package_file, "r") as scorm_zipfile:
-            for zipinfo in scorm_zipfile.infolist():
-                # Do not unzip folders, only files. In Python 3.6 we will have access to
-                # the is_dir() method to verify whether a ZipInfo object points to a
-                # directory.
-                # https://docs.python.org/3.6/library/zipfile.html#zipfile.ZipInfo.is_dir
-                if not zipinfo.filename.endswith("/"):
-                    xblock_storage().save(
-                        os.path.join(self.extract_folder_path, zipinfo.filename),
-                        scorm_zipfile.open(zipinfo.filename),
-                    )
+        # Clean storage folder, if it already exists
+        self.clean_storage()
 
+        # Then, extract zip file
         try:
+            self.extract_package(package_file)
             self.update_package_fields()
         except ScormError as e:
             response["errors"].append(e.args[0])
 
         return self.json_response(response)
+
+    def clean_storage(self):
+        if xblock_storage().exists(self.extract_folder_base_path):
+            logger.info(
+                'Removing previously unzipped "%s"', self.extract_folder_base_path
+            )
+            recursive_delete(self.extract_folder_base_path)
+
+    def extract_package(self, package_file):
+        with zipfile.ZipFile(package_file, "r") as scorm_zipfile:
+            zipinfos = scorm_zipfile.infolist()
+            root_path = None
+            root_depth = -1
+            # Find root folder which contains imsmanifest.xml
+            for zipinfo in zipinfos:
+                if os.path.basename(zipinfo.filename) == "imsmanifest.xml":
+                    depth = len(os.path.split(zipinfo.filename))
+                    if depth < root_depth or root_depth < 0:
+                        root_path = os.path.dirname(zipinfo.filename)
+                        root_depth = depth
+
+            if root_path is None:
+                raise ScormError(
+                    "Could not find 'imsmanifest.xml' file in the scorm package"
+                )
+
+            for zipinfo in zipinfos:
+                # Extract only files that are below the root
+                if zipinfo.filename.startswith(root_path):
+                    # Do not unzip folders, only files. In Python 3.6 we will have access to
+                    # the is_dir() method to verify whether a ZipInfo object points to a
+                    # directory.
+                    # https://docs.python.org/3.6/library/zipfile.html#zipfile.ZipInfo.is_dir
+                    if not zipinfo.filename.endswith("/"):
+                        dest_path = os.path.join(
+                            self.extract_folder_path,
+                            os.path.relpath(zipinfo.filename, root_path),
+                        )
+                        xblock_storage().save(
+                            dest_path,
+                            scorm_zipfile.open(zipinfo.filename),
+                        )
 
     @property
     def index_page_url(self):
@@ -328,44 +357,64 @@ class ScormXBlock(XBlock):
         """
         Update version and index page path fields.
         """
-        self.index_page_path = ""
-        imsmanifest_path = os.path.join(self.extract_folder_path, "imsmanifest.xml")
-        try:
-            imsmanifest_file = xblock_storage().open(imsmanifest_path)
-        except IOError:
-            raise ScormError(
-                "Invalid package: could not find 'imsmanifest.xml' file at the root of the zip file"
+        self.index_page_path = self.find_relative_file_path("index.html")
+        imsmanifest_path = self.find_file_path("imsmanifest.xml")
+        imsmanifest_file = xblock_storage().open(imsmanifest_path)
+        tree = ET.parse(imsmanifest_file)
+        imsmanifest_file.seek(0)
+        namespace = ""
+        for _, node in ET.iterparse(imsmanifest_file, events=["start-ns"]):
+            if node[0] == "":
+                namespace = node[1]
+                break
+        root = tree.getroot()
+
+        if namespace:
+            resource = root.find("{{{0}}}resources/{{{0}}}resource".format(namespace))
+            schemaversion = root.find(
+                "{{{0}}}metadata/{{{0}}}schemaversion".format(namespace)
             )
         else:
-            tree = ET.parse(imsmanifest_file)
-            imsmanifest_file.seek(0)
-            self.index_page_path = "index.html"
-            namespace = ""
-            for _, node in ET.iterparse(imsmanifest_file, events=["start-ns"]):
-                if node[0] == "":
-                    namespace = node[1]
-                    break
-            root = tree.getroot()
+            resource = root.find("resources/resource")
+            schemaversion = root.find("metadata/schemaversion")
 
-            if namespace:
-                resource = root.find(
-                    "{{{0}}}resources/{{{0}}}resource".format(namespace)
-                )
-                schemaversion = root.find(
-                    "{{{0}}}metadata/{{{0}}}schemaversion".format(namespace)
-                )
-            else:
-                resource = root.find("resources/resource")
-                schemaversion = root.find("metadata/schemaversion")
+        if resource:
+            self.index_page_path = resource.get("href")
+        if (schemaversion is not None) and (
+            re.match("^1.2$", schemaversion.text) is None
+        ):
+            self.scorm_version = "SCORM_2004"
+        else:
+            self.scorm_version = "SCORM_12"
 
-            if resource:
-                self.index_page_path = resource.get("href")
-            if (schemaversion is not None) and (
-                re.match("^1.2$", schemaversion.text) is None
-            ):
-                self.scorm_version = "SCORM_2004"
-            else:
-                self.scorm_version = "SCORM_12"
+    def find_relative_file_path(self, filename):
+        return os.path.relpath(self.find_file_path(filename), self.extract_folder_path)
+
+    def find_file_path(self, filename):
+        """
+        Search recursively in the extracted folder for a given file. Path of the first
+        found file will be returned. Raise a ScormError if file cannot be found.
+        """
+        path = self.get_file_path(filename, self.extract_folder_path)
+        if path is None:
+            raise ScormError(
+                "Invalid package: could not find '{}' file".format(filename)
+            )
+        return path
+
+    def get_file_path(self, filename, root):
+        """
+        Same as `find_file_path`, but don't raise error on file not found.
+        """
+        subfolders, files = xblock_storage().listdir(root)
+        for f in files:
+            if f == filename:
+                return os.path.join(root, filename)
+        for subfolder in subfolders:
+            path = self.get_file_path(filename, os.path.join(root, subfolder))
+            if path is not None:
+                return path
+        return None
 
     def get_completion_status(self):
         completion_status = self.lesson_status
