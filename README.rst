@@ -33,10 +33,41 @@ Go back to your course content. In the "Add New Component" section, click "Advan
 Advanced configuration
 ----------------------
 
+Asset url
+~~~~~~~~~
+
 By default, SCORM modules will be accessible at "/scorm/" urls and static assets will be stored in "scorm" media folders -- either on S3 or in the local storage, depending on your platform configuration. To change this behaviour, modify the xblock-specific ``LOCATION`` setting::
 
     XBLOCK_SETTINGS["ScormXBlock"] = {
         "LOCATION": "alternatevalue",
+    }
+
+Custom storage backends
+~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, static assets are stored in the default Django storage backend. To override this behaviour, you should define a custom storage function. This function must take the xblock instance as its first and only argument. For instance, you can store assets in different directories depending on the XBlock organisation with::
+
+    def scorm_storage(xblock):
+        from django.conf import settings
+        from django.core.files.storage import get_storage_class
+        from openedx.core.djangoapps.site_configuration.models import SiteConfiguration
+        
+        subfolder = SiteConfiguration.get_value_for_org(
+            xblock.location.org, "SCORM_STORAGE_NAME", "default"
+        )
+        storage_location = os.path.join(settings.MEDIA_ROOT, subfolder)
+        return get_storage_class(settings.DEFAULT_FILE_STORAGE)(
+            location=storage_location, base_url=settings.MEDIA_URL + "/" + subfolder
+        )
+
+    XBLOCK_SETTINGS["ScormXBlock"] = {
+        "STORAGE_FUNC": scorm_storage,
+    }
+
+This should be added both to the LMS and the CMS settings. Instead of a function, a string that points to an importable module may be passed::
+
+    XBLOCK_SETTINGS["ScormXBlock"] = {
+        "STORAGE_FUNC": "my.custom.storage.module.get_scorm_storage_function",
     }
 
 Development

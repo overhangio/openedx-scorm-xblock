@@ -10,8 +10,10 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.template import Context, Template
 from django.utils import timezone
+from django.utils.module_loading import import_string
 from webob import Response
 import pkg_resources
+from six import string_types
 
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
@@ -40,9 +42,29 @@ class ScormXBlock(XBlock):
         XBLOCK_SETTINGS["ScormXBlock"] = {
             "LOCATION": "alternatevalue",
         }
-
+    
     Note that neither the folder the folder nor the package file are deleted when the
     xblock is removed.
+
+    By default, static assets are stored in the default Django storage backend. To
+    override this behaviour, you should define a custom storage function. This
+    function must take the xblock instance as its first and only argument. For instance,
+    you can store assets in different directories depending on the XBlock organisation with::
+
+        def scorm_storage(xblock):
+            from django.conf import settings
+            from django.core.files.storage import FileSystemStorage
+            from openedx.core.djangoapps.site_configuration.models import SiteConfiguration
+            
+            subfolder = SiteConfiguration.get_value_for_org(
+                xblock.location.org, "SCORM_STORAGE_NAME", "default"
+            )
+            storage_location = os.path.join(settings.MEDIA_ROOT, subfolder)
+            return get_storage_class(settings.DEFAULT_FILE_STORAGE)(location=storage_location)
+
+        XBLOCK_SETTINGS["ScormXBlock"] = {
+            "STORAGE_FUNC": scorm_storage,
+        }
     """
 
     display_name = String(
@@ -174,10 +196,10 @@ class ScormXBlock(XBlock):
         self.update_package_meta(package_file)
 
         # First, save scorm file in the storage for mobile clients
-        if xblock_storage().exists(self.package_path):
+        if self.storage.exists(self.package_path):
             logger.info('Removing previously uploaded "%s"', self.package_path)
-            xblock_storage().delete(self.package_path)
-        xblock_storage().save(self.package_path, File(package_file))
+            self.storage.delete(self.package_path)
+        self.storage.save(self.package_path, File(package_file))
         logger.info('Scorm "%s" file stored at "%s"', package_file, self.package_path)
 
         # Clean storage folder, if it already exists
@@ -193,11 +215,23 @@ class ScormXBlock(XBlock):
         return self.json_response(response)
 
     def clean_storage(self):
-        if xblock_storage().exists(self.extract_folder_base_path):
+        if self.storage.exists(self.extract_folder_base_path):
             logger.info(
                 'Removing previously unzipped "%s"', self.extract_folder_base_path
             )
-            recursive_delete(self.extract_folder_base_path)
+            self.recursive_delete(self.extract_folder_base_path)
+
+    def recursive_delete(self, root):
+        """
+        Recursively delete the contents of a directory in the Django default storage.
+        Unfortunately, this will not delete empty folders, as the default FileSystemStorage
+        implementation does not allow it.
+        """
+        directories, files = self.storage.listdir(root)
+        for directory in directories:
+            self.recursive_delete(os.path.join(root, directory))
+        for f in files:
+            self.storage.delete(os.path.join(root, f))
 
     def extract_package(self, package_file):
         with zipfile.ZipFile(package_file, "r") as scorm_zipfile:
@@ -229,7 +263,7 @@ class ScormXBlock(XBlock):
                             self.extract_folder_path,
                             os.path.relpath(zipinfo.filename, root_path),
                         )
-                        xblock_storage().save(
+                        self.storage.save(
                             dest_path,
                             scorm_zipfile.open(zipinfo.filename),
                         )
@@ -239,14 +273,14 @@ class ScormXBlock(XBlock):
         if not self.package_meta or not self.index_page_path:
             return ""
         folder = self.extract_folder_path
-        if xblock_storage().exists(
+        if self.storage.exists(
             os.path.join(self.extract_folder_base_path, self.index_page_path)
         ):
             # For backward-compatibility, we must handle the case when the xblock data
             # is stored in the base folder.
             folder = self.extract_folder_base_path
             logger.warning("Serving SCORM content from old-style path: %s", folder)
-        return xblock_storage().url(os.path.join(folder, self.index_page_path))
+        return self.storage.url(os.path.join(folder, self.index_page_path))
 
     @property
     def package_path(self):
@@ -359,7 +393,7 @@ class ScormXBlock(XBlock):
         """
         self.index_page_path = self.find_relative_file_path("index.html")
         imsmanifest_path = self.find_file_path("imsmanifest.xml")
-        imsmanifest_file = xblock_storage().open(imsmanifest_path)
+        imsmanifest_file = self.storage.open(imsmanifest_path)
         tree = ET.parse(imsmanifest_file)
         imsmanifest_file.seek(0)
         namespace = ""
@@ -406,7 +440,7 @@ class ScormXBlock(XBlock):
         """
         Same as `find_file_path`, but don't raise error on file not found.
         """
-        subfolders, files = xblock_storage().listdir(root)
+        subfolders, files = self.storage.listdir(root)
         for f in files:
             if f == filename:
                 return os.path.join(root, filename)
@@ -428,11 +462,7 @@ class ScormXBlock(XBlock):
         accessible at a url with that also includes this name.
         """
         default_scorm_location = "scorm"
-        settings_service = self.runtime.service(self, "settings")
-        if not settings_service:
-            return default_scorm_location
-        xblock_settings = settings_service.get_settings_bucket(self)
-        return xblock_settings.get("LOCATION", default_scorm_location)
+        return self.xblock_settings.get("LOCATION", default_scorm_location)
 
     @staticmethod
     def get_sha1(file_descriptor):
@@ -457,7 +487,7 @@ class ScormXBlock(XBlock):
         if self.index_page_url:
             return {
                 "last_modified": self.package_meta.get("last_updated", ""),
-                "scorm_data": xblock_storage().url(self.package_path),
+                "scorm_data": self.storage.url(self.package_path),
                 "size": self.package_meta.get("size", 0),
                 "index_page": self.index_page_path,
             }
@@ -476,25 +506,31 @@ class ScormXBlock(XBlock):
             ),
         ]
 
+    @property
+    def storage(self):
+        """
+        Return the storage backend used to store the assets of this xblock. This is a cached property.
+        """
+        if not getattr(self, "_storage", None):
+            def get_default_storage(_xblock):
+                return default_storage
+        
+            storage_func = self.xblock_settings.get("STORAGE_FUNC", get_default_storage)
+            if isinstance(storage_func, string_types):
+                storage_func = import_string(storage_func)
+            self._storage = storage_func(self)
+        
+        return self._storage
 
-def recursive_delete(root):
-    """
-    Recursively delete the contents of a directory in the Django default storage.
-    Unfortunately, this will not delete empty folders, as the default FileSystemStorage
-    implementation does not allow it.
-    """
-    directories, files = xblock_storage().listdir(root)
-    for directory in directories:
-        recursive_delete(os.path.join(root, directory))
-    for f in files:
-        xblock_storage().delete(os.path.join(root, f))
-
-
-def xblock_storage():
-    """
-    Return the storage backend used to store the assets of this xblock.
-    """
-    return default_storage
+    @property
+    def xblock_settings(self):
+        """
+        Return a dict of settings associated to this XBlock.
+        """
+        settings_service = self.runtime.service(self, "settings") or {}
+        if not settings_service:
+            return {}
+        return settings_service.get_settings_bucket(self)
 
 
 class ScormError(Exception):
