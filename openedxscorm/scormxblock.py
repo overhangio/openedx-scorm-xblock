@@ -1,13 +1,18 @@
+from functools import partial
+from urllib.parse import urlparse
+import importlib
 import json
 import hashlib
 import os
+import tempfile
 import logging
 import re
 import xml.etree.ElementTree as ET
 import zipfile
+import concurrent.futures
 
+from django.conf import settings
 from django.core.files import File
-from django.core.files.storage import default_storage
 from django.template import Context, Template
 from django.utils import timezone
 from webob import Response
@@ -24,23 +29,30 @@ def _(text):
 
 logger = logging.getLogger(__name__)
 
+# importing directly from settings.XBLOCK_SETTINGS doesn't work here... doesn't have vals from ENV TOKENS yet
+scorm_settings = settings.ENV_TOKENS["XBLOCK_SETTINGS"]["ScormXBlock"]
+SCORM_FILE_STORAGE_TYPE = scorm_settings.get("SCORM_FILE_STORAGE_TYPE", "django.core.files.storage.default_storage")
+SCORM_MEDIA_BASE_URL = scorm_settings.get("SCORM_MEDIA_BASE_URL", "/scorm")
+mod, store_class = SCORM_FILE_STORAGE_TYPE.rsplit(".", 1)
+scorm_storage_module = importlib.import_module(mod)
+scorm_storage_class = getattr(scorm_storage_module, store_class)
+if SCORM_FILE_STORAGE_TYPE.endswith("default_storage"):
+    scorm_storage_instance = scorm_storage_class
+else:
+    scorm_storage_instance = scorm_storage_class()
+
 
 @XBlock.wants("settings")
 class ScormXBlock(XBlock):
     """
     When a user uploads a Scorm package, the zip file is stored in:
-
         media/{org}/{course}/{block_type}/{block_id}/{sha1}{ext}
-
     This zip file is then extracted to the media/{scorm_location}/{block_id}.
-
     The scorm location is defined by the LOCATION xblock setting. If undefined, this is
     "scorm". This setting can be set e.g:
-
         XBLOCK_SETTINGS["ScormXBlock"] = {
             "LOCATION": "alternatevalue",
         }
-
     Note that neither the folder the folder nor the package file are deleted when the
     xblock is removed.
     """
@@ -174,29 +186,50 @@ class ScormXBlock(XBlock):
         self.update_package_meta(package_file)
 
         # First, save scorm file in the storage for mobile clients
-        if default_storage.exists(self.package_path):
+        if scorm_storage_instance.exists(self.package_path):
             logger.info('Removing previously uploaded "%s"', self.package_path)
-            default_storage.delete(self.package_path)
-        default_storage.save(self.package_path, File(package_file))
+            scorm_storage_instance.delete(self.package_path)
+        scorm_storage_instance.save(self.package_path, File(package_file))
         logger.info('Scorm "%s" file stored at "%s"', package_file, self.package_path)
 
         # Then, extract zip file
-        if default_storage.exists(self.extract_folder_base_path):
+        if scorm_storage_instance.exists(self.extract_folder_base_path):
             logger.info(
                 'Removing previously unzipped "%s"', self.extract_folder_base_path
             )
             recursive_delete(self.extract_folder_base_path)
+
+        def unzip_member(_scorm_storage_instance,uncompressed_file,extract_folder_path, filename):
+            logger.info('Started uploading file {fname}'.format(fname=filename))
+            _scorm_storage_instance.save(
+                os.path.join(extract_folder_path, filename),
+                uncompressed_file,
+            )
+            logger.info('End uploadubg file {fname}'.format(fname=filename))
+
         with zipfile.ZipFile(package_file, "r") as scorm_zipfile:
-            for zipinfo in scorm_zipfile.infolist():
-                # Do not unzip folders, only files. In Python 3.6 we will have access to
-                # the is_dir() method to verify whether a ZipInfo object points to a
-                # directory.
-                # https://docs.python.org/3.6/library/zipfile.html#zipfile.ZipInfo.is_dir
-                if not zipinfo.filename.endswith("/"):
-                    default_storage.save(
-                        os.path.join(self.extract_folder_path, zipinfo.filename),
-                        scorm_zipfile.open(zipinfo.filename),
-                    )
+            futures = []
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                logger.info("started concurrent.futures.ThreadPoolExecutor")
+                for zipinfo in scorm_zipfile.infolist():
+                    fp = tempfile.TemporaryFile()
+                    fp.write(scorm_zipfile.open(zipinfo.filename).read())
+                    logger.info("started uploadig file {fname}".format(fname=zipinfo.filename))
+                    # Do not unzip folders, only files. In Python 3.6 we will have access to
+                    # the is_dir() method to verify whether a ZipInfo object points to a
+                    # directory.
+                    # https://docs.python.org/3.6/library/zipfile.html#zipfile.ZipInfo.is_dir
+                    if not zipinfo.filename.endswith("/"):
+                        futures.append(
+                            executor.submit(
+                                unzip_member,
+                                scorm_storage_instance,
+                                fp,
+                                self.extract_folder_path,
+                                zipinfo.filename,
+                            )
+                        )
+                logger.info("end concurrent.futures.ThreadPoolExecutor")
 
         try:
             self.update_package_fields()
@@ -210,14 +243,19 @@ class ScormXBlock(XBlock):
         if not self.package_meta or not self.index_page_path:
             return ""
         folder = self.extract_folder_path
-        if default_storage.exists(
+        if scorm_storage_instance.exists(
             os.path.join(self.extract_folder_base_path, self.index_page_path)
         ):
             # For backward-compatibility, we must handle the case when the xblock data
             # is stored in the base folder.
             folder = self.extract_folder_base_path
             logger.warning("Serving SCORM content from old-style path: %s", folder)
-        return default_storage.url(os.path.join(folder, self.index_page_path))
+        url = scorm_storage_instance.url(os.path.join(folder, self.index_page_path))
+        if SCORM_MEDIA_BASE_URL:
+            splitted_url = list(urlparse(url))
+            url = "{base_url}{path}".format(base_url=SCORM_MEDIA_BASE_URL, path=splitted_url[2])
+
+        return url
 
     @property
     def package_path(self):
@@ -331,7 +369,7 @@ class ScormXBlock(XBlock):
         self.index_page_path = ""
         imsmanifest_path = os.path.join(self.extract_folder_path, "imsmanifest.xml")
         try:
-            imsmanifest_file = default_storage.open(imsmanifest_path)
+            imsmanifest_file = scorm_storage_instance.open(imsmanifest_path)
         except IOError:
             raise ScormError(
                 "Invalid package: could not find 'imsmanifest.xml' file at the root of the zip file"
@@ -408,7 +446,7 @@ class ScormXBlock(XBlock):
         if self.index_page_url:
             return {
                 "last_modified": self.package_meta.get("last_updated", ""),
-                "scorm_data": default_storage.url(self.package_path),
+                "scorm_data": scorm_storage_instance.url(self.package_path),
                 "size": self.package_meta.get("size", 0),
                 "index_page": self.index_page_path,
             }
@@ -434,11 +472,11 @@ def recursive_delete(root):
     Unfortunately, this will not delete empty folders, as the default FileSystemStorage
     implementation does not allow it.
     """
-    directories, files = default_storage.listdir(root)
+    directories, files = scorm_storage_instance.listdir(root)
     for directory in directories:
         recursive_delete(os.path.join(root, directory))
     for f in files:
-        default_storage.delete(os.path.join(root, f))
+        scorm_storage_instance.delete(os.path.join(root, f))
 
 
 class ScormError(Exception):
