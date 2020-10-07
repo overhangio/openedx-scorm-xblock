@@ -115,6 +115,13 @@ class ScormXBlock(XBlock):
         scope=Scope.settings,
     )
 
+    fullscreen_on_launch = Boolean(
+        display_name=_("Fullscreen on launch"),
+        help=_("Display in fullscreen mode on launch"),
+        default=False,
+        scope=Scope.settings,
+    )
+
     has_author_view = True
 
     def render_template(self, template_path, context):
@@ -149,7 +156,11 @@ class ScormXBlock(XBlock):
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/scormxblock.js"))
         frag.initialize_js(
-            "ScormXBlock", json_args={"scorm_version": self.scorm_version}
+            "ScormXBlock",
+            json_args={
+                "scorm_version": self.scorm_version,
+                "fullscreen_on_launch": self.fullscreen_on_launch,
+            },
         )
         return frag
 
@@ -162,6 +173,7 @@ class ScormXBlock(XBlock):
             "field_weight": self.fields["weight"],
             "field_width": self.fields["width"],
             "field_height": self.fields["height"],
+            "field_fullscreen_on_launch": self.fields["fullscreen_on_launch"],
             "scorm_xblock": self,
         }
         studio_context.update(context or {})
@@ -185,6 +197,7 @@ class ScormXBlock(XBlock):
         self.height = request.params["height"]
         self.has_score = request.params["has_score"] == "True"
         self.weight = request.params["weight"]
+        self.fullscreen_on_launch = request.params["fullscreen_on_launch"] == "True"
         self.icon_class = "problem" if self.has_score else "video"
 
         response = {"result": "success", "errors": []}

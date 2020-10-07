@@ -56,6 +56,18 @@
             </div>
             <span class="tip setting-help">{% trans field_height.help %}</span>
         </li>
+
+        <li class="field comp-setting-entry is-set">
+            <div class="wrapper-comp-setting">
+                <label class="label setting-label" for="fullscreen_on_launch">{% trans field_fullscreen_on_launch.display_name %}</label>
+                <select name="fullscreen_on_launch" id="fullscreen_on_launch">
+                    {% for option in field_fullscreen_on_launch.values %}
+                    <option value="{{ option.value }}" {% if option.value == scorm_xblock.fullscreen_on_launch %}selected{% endif %}>{% trans option.display_name %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <span class="tip setting-help">{% trans field_fullscreen_on_launch.help %}</span>
+        </li>
     </ul>
 
     <div class="xblock-actions">

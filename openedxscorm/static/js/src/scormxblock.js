@@ -59,6 +59,13 @@ function ScormXBlock(runtime, element, settings) {
         };
     }
 
+    function enterFullscreen() {
+        $(element).find(".js-scorm-block").addClass("full-screen-scorm");
+    }
+    function exitFullscreen() {
+        $(element).find(".js-scorm-block").removeClass("full-screen-scorm");
+    }
+
     var GetValue = function(cmi_element) {
         var handlerUrl = runtime.handlerUrl(element, 'scorm_get_value');
 
@@ -71,12 +78,19 @@ function ScormXBlock(runtime, element, settings) {
             async: false
         });
         response = JSON.parse(response.responseText);
-        return response.value
+        return response.value;
     };
 
+    var fullscreenOnNextEvent = true;
     var SetValue = function(cmi_element, value) {
         if (cmi_element === 'cmi.core.exit' || cmi_element === 'cmi.exit') {
-            $(".js-scorm-block", element).removeClass('full-screen-scorm');
+            exitFullscreen();
+            fullscreenOnNextEvent = true;
+        } else if (fullscreenOnNextEvent) {
+            fullscreenOnNextEvent = false;
+            if (settings.fullscreen_on_launch) {
+                enterFullscreen();
+            }
         }
 
         var handlerUrl = runtime.handlerUrl(element, 'scorm_set_value');
@@ -91,9 +105,9 @@ function ScormXBlock(runtime, element, settings) {
             async: false,
             success: function(response) {
                 if (typeof response.lesson_score != "undefined") {
-                    $(".lesson_score", element).html(response.lesson_score);
+                    $(element).find(".lesson_score").html(response.lesson_score);
                 }
-                $(".completion_status", element).html(response.completion_status);
+                $(element).find(".completion_status").html(response.completion_status);
             }
         });
 
@@ -106,10 +120,11 @@ function ScormXBlock(runtime, element, settings) {
         } else {
             API_1484_11 = new SCORM_2004_API();
         }
-
-        var $scormBlock = $(".js-scorm-block", element);
-        $('.js-button-full-screen', element).on("click", function() {
-            $scormBlock.toggleClass("full-screen-scorm");
+        $(element).find("button.full-screen-on").on("click", function() {
+            enterFullscreen();
+        });
+        $(element).find("button.full-screen-off").on("click", function() {
+            exitFullscreen();
         });
     });
 }
