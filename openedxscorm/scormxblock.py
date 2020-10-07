@@ -264,8 +264,7 @@ class ScormXBlock(XBlock):
                             os.path.relpath(zipinfo.filename, root_path),
                         )
                         self.storage.save(
-                            dest_path,
-                            scorm_zipfile.open(zipinfo.filename),
+                            dest_path, scorm_zipfile.open(zipinfo.filename),
                         )
 
     @property
@@ -513,14 +512,15 @@ class ScormXBlock(XBlock):
         Return the storage backend used to store the assets of this xblock. This is a cached property.
         """
         if not getattr(self, "_storage", None):
+
             def get_default_storage(_xblock):
                 return default_storage
-        
+
             storage_func = self.xblock_settings.get("STORAGE_FUNC", get_default_storage)
             if isinstance(storage_func, string_types):
                 storage_func = import_string(storage_func)
             self._storage = storage_func(self)
-        
+
         return self._storage
 
     @property
