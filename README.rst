@@ -40,6 +40,9 @@ By default, SCORM modules will be accessible at "/scorm/" urls and static assets
         "SCORM_FILE_STORAGE_TYPE": "openedx.features.clearesult_features.backend_storage.ScormXblockS3Storage"
     }
 
+Here ``SCORM_FILE_STORAGE_TYPE`` shows that we are using our own custom storage backend. You can get the idea from
+`Philanthropy Storage Backend <https://github.com/philanthropy-u/edx-platform/blob/master/openedx/features/philu_utils/backend_storage.py>`_
+
 If you are using this xblock locally, there is a configuration variable whose value you will have to set empty string::
 
     XBLOCK_SETTINGS["ScormXBlock"] = {
