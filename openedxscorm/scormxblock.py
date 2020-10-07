@@ -391,7 +391,6 @@ class ScormXBlock(XBlock):
         """
         Update version and index page path fields.
         """
-        self.index_page_path = self.find_relative_file_path("index.html")
         imsmanifest_path = self.find_file_path("imsmanifest.xml")
         imsmanifest_file = self.storage.open(imsmanifest_path)
         tree = ET.parse(imsmanifest_file)
@@ -414,6 +413,8 @@ class ScormXBlock(XBlock):
 
         if resource:
             self.index_page_path = resource.get("href")
+        else:
+            self.index_page_path = self.find_relative_file_path("index.html")
         if (schemaversion is not None) and (
             re.match("^1.2$", schemaversion.text) is None
         ):
