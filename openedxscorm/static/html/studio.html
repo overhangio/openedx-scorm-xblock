@@ -25,9 +25,8 @@
             <div class="wrapper-comp-setting">
                 <label class="label setting-label" for="has_score">{% trans field_has_score.display_name %}</label>
                 <select name="has_score" id="has_score">
-                    {% for option in field_has_score.values %}
-                    <option value="{{ option.value }}" {% if option.value == scorm_xblock.has_score %}selected{% endif %}>{% trans option.display_name %}</option>
-                    {% endfor %}
+                    <option value="1" {% if scorm_xblock.has_score %}selected{% endif %}>{% trans "True" %}</option>
+                    <option value="0" {% if not scorm_xblock.has_score %}selected{% endif %}>{% trans "False" %}</option>
                 </select>
             </div>
             <span class="tip setting-help">{% trans field_has_score.help %}</span>
@@ -61,9 +60,8 @@
             <div class="wrapper-comp-setting">
                 <label class="label setting-label" for="fullscreen_on_launch">{% trans field_fullscreen_on_launch.display_name %}</label>
                 <select name="fullscreen_on_launch" id="fullscreen_on_launch">
-                    {% for option in field_fullscreen_on_launch.values %}
-                    <option value="{{ option.value }}" {% if option.value == scorm_xblock.fullscreen_on_launch %}selected{% endif %}>{% trans option.display_name %}</option>
-                    {% endfor %}
+                    <option value="1" {% if scorm_xblock.fullscreen_on_launch %}selected{% endif %}>{% trans "True" %}</option>
+                    <option value="0" {% if not scorm_xblock.fullscreen_on_launch %}selected{% endif %}>{% trans "False" %}</option>
                 </select>
             </div>
             <span class="tip setting-help">{% trans field_fullscreen_on_launch.help %}</span>

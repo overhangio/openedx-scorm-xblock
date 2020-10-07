@@ -195,9 +195,9 @@ class ScormXBlock(XBlock):
         self.display_name = request.params["display_name"]
         self.width = request.params["width"]
         self.height = request.params["height"]
-        self.has_score = request.params["has_score"] == "True"
+        self.has_score = request.params["has_score"] == "1"
         self.weight = request.params["weight"]
-        self.fullscreen_on_launch = request.params["fullscreen_on_launch"] == "True"
+        self.fullscreen_on_launch = request.params["fullscreen_on_launch"] == "1"
         self.icon_class = "problem" if self.has_score else "video"
 
         response = {"result": "success", "errors": []}
