@@ -27,7 +27,7 @@ function ScormXBlock(runtime, element, settings) {
 
         this.LMSGetDiagnostic = function(errorCode) {
             return "Some Diagnostic";
-        }
+        };
     }
 
     function SCORM_2004_API() {
@@ -55,8 +55,8 @@ function ScormXBlock(runtime, element, settings) {
         };
 
         this.GetDiagnostic = function(errorCode) {
-            return "Some Diagnostice";
-        }
+            return "Some Diagnostic";
+        };
     }
 
     var GetValue = function(cmi_element) {
