@@ -21,6 +21,7 @@ function ScormStudioXBlock(runtime, element) {
             state: 'start'
         });
 
+        $(this).addClass("disabled");
         $.ajax({
             url: handlerUrl,
             dataType: 'json',
@@ -29,6 +30,9 @@ function ScormStudioXBlock(runtime, element) {
             processData: false,
             data: form_data,
             type: "POST",
+            complete: function() {
+                $(this).removeClass("disabled");
+            },
             success: function(response) {
                 if (response.errors.length > 0) {
                     response.errors.forEach(function(error) {
