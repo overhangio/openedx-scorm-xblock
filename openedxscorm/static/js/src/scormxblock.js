@@ -26,7 +26,7 @@ function ScormXBlock(runtime, element, settings) {
         };
 
         this.LMSGetDiagnostic = function(errorCode) {
-            return "Some Diagnostice";
+            return "Some Diagnostic";
         }
     }
 
