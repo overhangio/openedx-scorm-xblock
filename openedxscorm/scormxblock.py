@@ -183,9 +183,9 @@ class ScormXBlock(XBlock):
         self.display_name = request.params["display_name"]
         self.width = request.params["width"]
         self.height = request.params["height"]
-        self.has_score = request.params["has_score"]
+        self.has_score = request.params["has_score"] == "True"
         self.weight = request.params["weight"]
-        self.icon_class = "problem" if self.has_score == "True" else "video"
+        self.icon_class = "problem" if self.has_score else "video"
 
         response = {"result": "success", "errors": []}
         if not hasattr(request.params["file"], "file"):
