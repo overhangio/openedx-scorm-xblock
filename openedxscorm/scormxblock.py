@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 from django.core.files import File
+from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.template import Context, Template
 from django.utils import timezone
@@ -277,7 +278,8 @@ class ScormXBlock(XBlock):
                             os.path.relpath(zipinfo.filename, root_path),
                         )
                         self.storage.save(
-                            dest_path, scorm_zipfile.open(zipinfo.filename),
+                            dest_path,
+                            ContentFile(scorm_zipfile.read(zipinfo.filename)),
                         )
 
     @property
