@@ -1,7 +1,7 @@
-`SCORM <https://en.wikipedia.org/wiki/Scorm>`__ XBlock for `Open edX <https://openedx.org>`__
-=============================================================================================
+SCORM XBlock for Open edX
+=========================
 
-This is an XBlock to display SCORM content within the Open edX LMS and Studio. It will save student state and report scores to the progress tab of the course.
+This is an XBlock to display `SCORM <https://en.wikipedia.org/wiki/Scorm>`__ content within the `Open edX <https://openedx.org>`__ LMS and Studio. It will save student state and report scores to the progress tab of the course.
 Currently supports SCORM 1.2 and SCORM 2004 standard.
 
 .. image:: https://github.com/overhangio/openedx-scorm-xblock/raw/master/screenshots/studio.png
@@ -13,6 +13,14 @@ Currently supports SCORM 1.2 and SCORM 2004 standard.
 This XBlock was initially developed by `Raccoon Gang <https://raccoongang.com/>`__ and published as `edx_xblock_scorm <https://github.com/raccoongang/edx_xblock_scorm>`__. It was later improved, published on Pypi and relicensed as AGPLv3 thanks to the support of `Compliplus Ltd <https://compliplus.com/>`__.
 
 This XBlock is not compatible with its `ancestor <https://github.com/raccoongang/edx_xblock_scorm>`__: older xblocks cannot be simply migrated to the newer one. However, this xblock can be installed next to the other one and run on the same platform for easier transition.
+
+Features
+--------
+
+* Optional auto-fullscreen
+* Integrated grading, compatible with rescoring
+* Compatibility with `Django storages <https://django-storages.readthedocs.io/>`__, customizable storage backend
+* Works with Juniper, the latest Open edX release
 
 Installation
 ------------
