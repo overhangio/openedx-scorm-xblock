@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 import concurrent.futures
 
+from completion import waffle as completion_waffle
 from django.conf import settings
 from django.core.files import File
 from django.template import Context, Template
@@ -19,6 +20,7 @@ from webob import Response
 import pkg_resources
 
 from web_fragments.fragment import Fragment
+from xblock.completable import XBlockCompletionMode
 from xblock.core import XBlock
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
 
@@ -56,6 +58,8 @@ class ScormXBlock(XBlock):
     Note that neither the folder the folder nor the package file are deleted when the
     xblock is removed.
     """
+    has_custom_completion = True
+    completion_mode = XBlockCompletionMode.COMPLETABLE
 
     display_name = String(
         display_name=_("Display Name"),
@@ -331,6 +335,35 @@ class ScormXBlock(XBlock):
         self.runtime.publish(
             self, "grade", {"value": self.get_grade(), "max_value": self.weight},
         )
+        self.publish_completion()
+
+
+    def publish_completion(self):
+        """
+        Mark scorm xbloxk as completed if user has completed the scorm course unit.
+
+        it will work along with the edX completion tool: https://github.com/edx/completion
+        """
+        if not completion_waffle.waffle().is_enabled(completion_waffle.ENABLE_COMPLETION_TRACKING):
+            return
+
+        if XBlockCompletionMode.get_mode(self) != XBlockCompletionMode.COMPLETABLE:
+            return
+
+        completion_value = 0.0
+        if not self.has_score:
+            # componenet does not have any score
+            if self.get_completion_status() == 'completed':
+                completion_value = 1.0
+        else:
+            if self.get_completion_status() in ['passed', 'failed']:
+                completion_value = 1.0
+
+        data = {
+            'completion': completion_value
+        }
+        self.runtime.publish(self, "completion", data)
+
 
     def get_grade(self):
         lesson_score = self.lesson_score
