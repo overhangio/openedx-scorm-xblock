@@ -18,6 +18,7 @@ from six import string_types
 
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
+from xblock.completable import CompletableXBlockMixin
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
 
 # Make '_' a no-op so we can scrape strings
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 @XBlock.wants("settings")
-class ScormXBlock(XBlock):
+class ScormXBlock(XBlock, CompletableXBlockMixin):
     """
     When a user uploads a Scorm package, the zip file is stored in:
 
@@ -43,7 +44,7 @@ class ScormXBlock(XBlock):
         XBLOCK_SETTINGS["ScormXBlock"] = {
             "LOCATION": "alternatevalue",
         }
-    
+
     Note that neither the folder the folder nor the package file are deleted when the
     xblock is removed.
 
@@ -56,7 +57,7 @@ class ScormXBlock(XBlock):
             from django.conf import settings
             from django.core.files.storage import FileSystemStorage
             from openedx.core.djangoapps.site_configuration.models import SiteConfiguration
-            
+
             subfolder = SiteConfiguration.get_value_for_org(
                 xblock.location.org, "SCORM_STORAGE_NAME", "default"
             )
@@ -339,36 +340,45 @@ class ScormXBlock(XBlock):
     def scorm_set_value(self, data, _suffix):
         context = {"result": "success"}
         name = data.get("name")
+        publish_grade = False
+        completion_percent = None
 
         if name in ["cmi.core.lesson_status", "cmi.completion_status"]:
             self.lesson_status = data.get("value")
-            if self.has_score and data.get("value") in [
+            if data.get("value") in [
                 "completed",
                 "failed",
                 "passed",
             ]:
-                self.publish_grade()
-                context.update({"lesson_score": self.lesson_score})
+                completion_percent = 1
+                if self.has_score:
+                    publish_grade = True
         elif name == "cmi.success_status":
             self.success_status = data.get("value")
             if self.has_score:
                 if self.success_status == "unknown":
                     self.lesson_score = 0
-                self.publish_grade()
-                context.update({"lesson_score": self.lesson_score})
+                publish_grade = True
         elif name in ["cmi.core.score.raw", "cmi.score.raw"] and self.has_score:
             self.lesson_score = float(data.get("value", 0)) / 100.0
-            self.publish_grade()
-            context.update({"lesson_score": self.lesson_score})
+            publish_grade = True
         else:
             self.scorm_data[name] = data.get("value", "")
+
+        if completion_percent is not None:
+            self.emit_completion(completion_percent)
+        if publish_grade:
+            self.publish_grade()
+            context.update({"lesson_score": self.lesson_score})
 
         context.update({"completion_status": self.get_completion_status()})
         return context
 
     def publish_grade(self):
         self.runtime.publish(
-            self, "grade", {"value": self.get_grade(), "max_value": self.weight},
+            self,
+            "grade",
+            {"value": self.get_grade(), "max_value": self.weight},
         )
 
     def get_grade(self):
