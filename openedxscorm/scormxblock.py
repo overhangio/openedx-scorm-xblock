@@ -221,8 +221,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         self.clean_storage()
 
         # Then, extract zip file
+        # At this point we can no longer use the package_file object because some storage backends close the file after
+        # saving. So we need to re-open the file, this time from the storage backend.
         try:
-            self.extract_package(package_file)
+            self.extract_package(self.storage.open(self.package_path))
             self.update_package_fields()
         except ScormError as e:
             response["errors"].append(e.args[0])
