@@ -6,7 +6,6 @@ import re
 import xml.etree.ElementTree as ET
 import zipfile
 
-from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.template import Context, Template
@@ -210,21 +209,12 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         package_file = request.params["file"].file
         self.update_package_meta(package_file)
 
-        # First, save scorm file in the storage for mobile clients
-        if self.storage.exists(self.package_path):
-            logger.info('Removing previously uploaded "%s"', self.package_path)
-            self.storage.delete(self.package_path)
-        self.storage.save(self.package_path, File(package_file))
-        logger.info('Scorm "%s" file stored at "%s"', package_file, self.package_path)
-
         # Clean storage folder, if it already exists
         self.clean_storage()
 
-        # Then, extract zip file
-        # At this point we can no longer use the package_file object because some storage backends close the file after
-        # saving. So we need to re-open the file, this time from the storage backend.
+        # Extract zip file
         try:
-            self.extract_package(self.storage.open(self.package_path))
+            self.extract_package(package_file)
             self.update_package_fields()
         except ScormError as e:
             response["errors"].append(e.args[0])
@@ -298,19 +288,6 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             folder = self.extract_folder_base_path
             logger.warning("Serving SCORM content from old-style path: %s", folder)
         return self.storage.url(os.path.join(folder, self.index_page_path))
-
-    @property
-    def package_path(self):
-        """
-        Get file path of storage.
-        """
-        return (
-            "{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}/{sha1}{ext}"
-        ).format(
-            loc=self.location,
-            sha1=self.package_meta["sha1"],
-            ext=os.path.splitext(self.package_meta["name"])[1],
-        )
 
     @property
     def extract_folder_path(self):
@@ -510,11 +487,12 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         """
         Inform REST api clients about original file location and it's "freshness".
         Make sure to include `student_view_data=openedxscorm` to URL params in the request.
+
+        Note: we are not sure what this view is for and it might be removed in the future.
         """
         if self.index_page_url:
             return {
                 "last_modified": self.package_meta.get("last_updated", ""),
-                "scorm_data": self.storage.url(self.package_path),
                 "size": self.package_meta.get("size", 0),
                 "index_page": self.index_page_path,
             }
