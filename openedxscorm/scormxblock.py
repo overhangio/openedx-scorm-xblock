@@ -405,7 +405,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                 break
         root = tree.getroot()
 
-        if namespace:
+        if namespace is not None:
             resource = root.find("{{{0}}}resources/{{{0}}}resource".format(namespace))
             schemaversion = root.find(
                 "{{{0}}}metadata/{{{0}}}schemaversion".format(namespace)
@@ -414,7 +414,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             resource = root.find("resources/resource")
             schemaversion = root.find("metadata/schemaversion")
 
-        if resource:
+        if resource is not None:
             self.index_page_path = resource.get("href")
         else:
             self.index_page_path = self.find_relative_file_path("index.html")
