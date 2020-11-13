@@ -194,10 +194,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     @XBlock.handler
     def studio_submit(self, request, _suffix):
         self.display_name = request.params["display_name"]
-        self.width = request.params["width"]
-        self.height = request.params["height"]
+        self.width = parse_int(request.params["width"], None)
+        self.height = parse_int(request.params["height"], None)
         self.has_score = request.params["has_score"] == "1"
-        self.weight = request.params["weight"]
+        self.weight = parse_float(request.params["weight"], 1)
         self.fullscreen_on_launch = request.params["fullscreen_on_launch"] == "1"
         self.icon_class = "problem" if self.has_score else "video"
 
@@ -537,6 +537,20 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         if not settings_service:
             return {}
         return settings_service.get_settings_bucket(self)
+
+
+def parse_int(value, default):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def parse_float(value, default):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 class ScormError(Exception):
