@@ -20,7 +20,7 @@ Features
 * Optional auto-fullscreen
 * Integrated grading, compatible with rescoring
 * Compatibility with `Django storages <https://django-storages.readthedocs.io/>`__, customizable storage backend
-* Works with Juniper, the latest Open edX release
+* Works with Koa, the latest Open edX release (use v10 for Juniper and v9 for Ironwood)
 
 Installation
 ------------
