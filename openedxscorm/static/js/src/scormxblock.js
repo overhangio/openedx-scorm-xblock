@@ -59,11 +59,13 @@ function ScormXBlock(runtime, element, settings) {
         };
     }
 
+    var fullscreenOnNextEvent = true;
     function enterFullscreen() {
         $(element).find(".js-scorm-block").addClass("full-screen-scorm");
     }
     function exitFullscreen() {
         $(element).find(".js-scorm-block").removeClass("full-screen-scorm");
+        fullscreenOnNextEvent = true;
     }
 
     var GetValue = function(cmi_element) {
@@ -81,12 +83,10 @@ function ScormXBlock(runtime, element, settings) {
         return response.value;
     };
 
-    var fullscreenOnNextEvent = true;
     var SetValue = function(cmi_element, value) {
-        if (cmi_element === 'cmi.core.exit' || cmi_element === 'cmi.exit') {
-            exitFullscreen();
-            fullscreenOnNextEvent = true;
-        } else if (fullscreenOnNextEvent) {
+        // The first event causes the module to go fullscreen
+        // when the setting is enabled
+        if (fullscreenOnNextEvent) {
             fullscreenOnNextEvent = false;
             if (settings.fullscreen_on_launch) {
                 enterFullscreen();
