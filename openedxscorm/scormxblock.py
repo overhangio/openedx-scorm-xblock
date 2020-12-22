@@ -161,6 +161,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             json_args={
                 "scorm_version": self.scorm_version,
                 "fullscreen_on_launch": self.fullscreen_on_launch,
+                "scorm_data": self.scorm_data,
             },
         )
         return frag
@@ -306,6 +307,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
     @XBlock.json_handler
     def scorm_get_value(self, data, _suffix):
+        """
+        Here we get only the get_value events that were not filtered by the LMSGetValue js function.
+        """
         name = data.get("name")
         if name in ["cmi.core.lesson_status", "cmi.completion_status"]:
             return {"value": self.lesson_status}

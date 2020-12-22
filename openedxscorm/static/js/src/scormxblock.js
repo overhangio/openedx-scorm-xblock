@@ -68,21 +68,37 @@ function ScormXBlock(runtime, element, settings) {
         fullscreenOnNextEvent = true;
     }
 
+    // We only make calls to the get_value handler when absolutely required.
+    // These calls are synchronous and they can easily clog the scorm display.
+    var uncachedValues = [
+        "cmi.core.lesson_status",
+        "cmi.completion_status",
+        "cmi.success_status",
+        "cmi.core.score.raw",
+        "cmi.score.raw"
+    ];
+    var getValueUrl = runtime.handlerUrl(element, 'scorm_get_value');
     var GetValue = function(cmi_element) {
-        var handlerUrl = runtime.handlerUrl(element, 'scorm_get_value');
-
-        var response = $.ajax({
-            type: "POST",
-            url: handlerUrl,
-            data: JSON.stringify({
-                'name': cmi_element
-            }),
-            async: false
-        });
-        response = JSON.parse(response.responseText);
-        return response.value;
+        if (cmi_element in uncachedValues) {
+            var response = $.ajax({
+                type: "POST",
+                url: getValueUrl,
+                data: JSON.stringify({
+                    'name': cmi_element
+                }),
+                async: false
+            });
+            response = JSON.parse(response.responseText);
+            return response.value;
+        } else if (cmi_element in settings.scorm_data) {
+            return settings.scorm_data[cmi_element];
+        }
+        return "";
     };
 
+    var setValueEvents = [];
+    var processingSetValueEventsQueue = false;
+    var setValueUrl = runtime.handlerUrl(element, 'scorm_set_value');
     var SetValue = function(cmi_element, value) {
         // The first event causes the module to go fullscreen
         // when the setting is enabled
@@ -92,26 +108,48 @@ function ScormXBlock(runtime, element, settings) {
                 enterFullscreen();
             }
         }
-
-        var handlerUrl = runtime.handlerUrl(element, 'scorm_set_value');
-
+        SetValueAsync(cmi_element, value);
+        return "true";
+    }
+    function SetValueAsync(cmi_element, value) {
+        setValueEvents.push([cmi_element, value]);
+        if (!processingSetValueEventsQueue) {
+            // There is no running queue processor so we start one
+            processSetValueQueueItem();
+        }
+    }
+    function processSetValueQueueItem() {
+        if (setValueEvents.length === 0) {
+            // Exit if there is no event left in the queue
+            processingSetValueEventsQueue = false;
+            return;
+        }
+        processingSetValueEventsQueue = true;
+        params = setValueEvents.shift();
+        cmi_element = params[0];
+        value = params[1];
+        if (!cmi_element in uncachedValues) {
+            // Update the local scorm data copy to fetch results faster with get_value
+            settings.scorm_data[cmi_element] = value;
+        }
         $.ajax({
             type: "POST",
-            url: handlerUrl,
+            url: setValueUrl,
             data: JSON.stringify({
                 'name': cmi_element,
                 'value': value
             }),
-            async: false,
             success: function(response) {
                 if (typeof response.lesson_score != "undefined") {
                     $(element).find(".lesson_score").html(response.lesson_score);
                 }
                 $(element).find(".completion_status").html(response.completion_status);
+            },
+            complete: function() {
+                // Recursive call to itself
+                processSetValueQueueItem();
             }
         });
-
-        return "true";
     };
 
     $(function($) {
