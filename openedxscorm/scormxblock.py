@@ -327,7 +327,14 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         return {"value": self.scorm_data.get(name, "")}
 
     @XBlock.json_handler
+    def scorm_set_values(self, data_list, _suffix):
+        return [self.set_value(data) for data in data_list]
+
+    @XBlock.json_handler
     def scorm_set_value(self, data, _suffix):
+        return self.set_value(data)
+
+    def set_value(self, data):
         name = data.get("name")
         completion_percent = None
         success_status = None

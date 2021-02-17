@@ -104,7 +104,7 @@ function ScormXBlock(runtime, element, settings) {
 
     var setValueEvents = [];
     var processingSetValueEventsQueue = false;
-    var setValueUrl = runtime.handlerUrl(element, 'scorm_set_value');
+    var setValuesUrl = runtime.handlerUrl(element, 'scorm_set_values');
     var SetValue = function(cmi_element, value) {
         // The first event causes the module to go fullscreen
         // when the setting is enabled
@@ -121,39 +121,46 @@ function ScormXBlock(runtime, element, settings) {
         setValueEvents.push([cmi_element, value]);
         if (!processingSetValueEventsQueue) {
             // There is no running queue processor so we start one
-            processSetValueQueueItem();
+            processSetValueQueueItems();
         }
     }
-    function processSetValueQueueItem() {
+    function processSetValueQueueItems() {
         if (setValueEvents.length === 0) {
             // Exit if there is no event left in the queue
             processingSetValueEventsQueue = false;
             return;
         }
         processingSetValueEventsQueue = true;
-        params = setValueEvents.shift();
-        cmi_element = params[0];
-        value = params[1];
-        if (!cmi_element in uncachedValues) {
-            // Update the local scorm data copy to fetch results faster with get_value
-            settings.scorm_data[cmi_element] = value;
+        var data = [];
+        while (setValueEvents.length > 0) {
+            params = setValueEvents.shift();
+            cmi_element = params[0];
+            value = params[1];
+            if (!cmi_element in uncachedValues) {
+                // Update the local scorm data copy to fetch results faster with get_value
+                settings.scorm_data[cmi_element] = value;
+            }
+            data.push({
+                'name': cmi_element,
+                'value': value
+            })
         }
         $.ajax({
             type: "POST",
-            url: setValueUrl,
-            data: JSON.stringify({
-                'name': cmi_element,
-                'value': value
-            }),
-            success: function(response) {
-                if (typeof response.lesson_score != "undefined") {
-                    $(element).find(".lesson_score").html(response.lesson_score);
+            url: setValuesUrl,
+            data: JSON.stringify(data),
+            success: function(results) {
+                for (var i = 0; i < results.length; i += 1) {
+                    var result = results[i];
+                    if (typeof result.lesson_score != "undefined") {
+                        $(element).find(".lesson_score").html(result.lesson_score);
+                    }
+                    $(element).find(".completion_status").html(result.completion_status);
                 }
-                $(element).find(".completion_status").html(response.completion_status);
             },
             complete: function() {
                 // Recursive call to itself
-                processSetValueQueueItem();
+                processSetValueQueueItems();
             }
         });
     };
