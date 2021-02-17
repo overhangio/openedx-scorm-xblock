@@ -20,6 +20,7 @@ from xblock.core import XBlock
 from xblock.completable import CompletableXBlockMixin
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
 
+
 # Make '_' a no-op so we can scrape strings
 def _(text):
     return text
@@ -80,9 +81,15 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     package_meta = Dict(scope=Scope.content)
     scorm_version = String(default="SCORM_12", scope=Scope.settings)
 
-    # save completion_status for SCORM_2004
+    # lesson_status is for SCORM 1.2 and can take the following values:
+    # "passed", "completed", "failed", "incomplete", "browsed", "not attempted"
+    # In SCORM_2004, status is broken down in two elements:
+    # - cmi.completion_status: "completed" vs "incomplete"
+    # - cmi.success_status: "passed" vs "failed"
+    # We denormalize these two elements by storing the completion status in self.lesson_status.
     lesson_status = String(scope=Scope.user_state, default="not attempted")
     success_status = String(scope=Scope.user_state, default="unknown")
+
     lesson_score = Float(scope=Scope.user_state, default=0)
     weight = Float(
         default=1,
@@ -147,7 +154,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def student_view(self, context=None):
         student_context = {
             "index_page_url": self.index_page_url,
-            "completion_status": self.get_completion_status(),
+            "completion_status": self.lesson_status,
             "grade": self.get_grade(),
             "scorm_xblock": self,
         }
@@ -321,40 +328,44 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
     @XBlock.json_handler
     def scorm_set_value(self, data, _suffix):
-        context = {"result": "success"}
         name = data.get("name")
-        publish_grade = False
         completion_percent = None
+        success_status = None
+        completion_status = None
+        context = {"result": "success"}
 
-        if name in ["cmi.core.lesson_status", "cmi.completion_status"]:
-            self.lesson_status = data.get("value")
-            if data.get("value") in [
-                "completed",
-                "failed",
-                "passed",
-            ]:
-                completion_percent = 1
-                if self.has_score:
-                    publish_grade = True
+        if name == "cmi.core.lesson_status":
+            lesson_status = data.get("value")
+            if lesson_status in ["passed", "failed"]:
+                success_status = lesson_status
+            elif lesson_status in ["completed", "incomplete"]:
+                completion_status = lesson_status
         elif name == "cmi.success_status":
-            self.success_status = data.get("value")
-            if self.has_score:
-                if self.success_status == "unknown":
-                    self.lesson_score = 0
-                publish_grade = True
+            success_status = data.get("value")
+        elif name == "cmi.completion_status":
+            completion_status = data.get("value")
         elif name in ["cmi.core.score.raw", "cmi.score.raw"] and self.has_score:
             self.lesson_score = float(data.get("value", 0)) / 100.0
-            publish_grade = True
+            context.update({"lesson_score": self.lesson_score})
+        elif name == "cmi.progress_measure":
+            try:
+                completion_percent = float(data.get("value"))
+            except (ValueError, TypeError):
+                pass
         else:
             self.scorm_data[name] = data.get("value", "")
 
         if completion_percent is not None:
             self.emit_completion(completion_percent)
-        if publish_grade:
-            self.publish_grade()
-            context.update({"lesson_score": self.lesson_score})
+        if completion_status:
+            self.lesson_status = completion_status
+            context.update({"completion_status": completion_status})
+        if success_status:
+            self.success_status = success_status
+        if success_status or completion_status == "completed":
+            if self.has_score:
+                self.publish_grade()
 
-        context.update({"completion_status": self.get_completion_status()})
         return context
 
     def publish_grade(self):
@@ -365,13 +376,12 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         )
 
     def get_grade(self):
-        lesson_score = self.lesson_score
-        if self.lesson_status == "failed" or (
-            self.scorm_version == "SCORM_2004"
-            and self.success_status in ["failed", "unknown"]
-        ):
-            lesson_score = 0
+        lesson_score = 0 if self.is_failed else self.lesson_score
         return lesson_score * self.weight
+
+    @property
+    def is_failed(self):
+        return self.success_status == "failed"
 
     def set_score(self, score):
         """
@@ -456,12 +466,6 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             if path is not None:
                 return path
         return None
-
-    def get_completion_status(self):
-        completion_status = self.lesson_status
-        if self.scorm_version == "SCORM_2004" and self.success_status != "unknown":
-            completion_status = self.success_status
-        return completion_status
 
     def scorm_location(self):
         """
