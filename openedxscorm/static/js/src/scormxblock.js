@@ -152,8 +152,10 @@ function ScormXBlock(runtime, element, settings) {
             success: function(results) {
                 for (var i = 0; i < results.length; i += 1) {
                     var result = results[i];
-                    if (typeof result.lesson_score != "undefined") {
-                        $(element).find(".lesson_score").html(result.lesson_score);
+                    if (typeof result.grade != "undefined") {
+                        // Properly display at most two decimals
+                        console.log(result.grade, Math.round(result.grade*100) / 100)
+                        $(element).find(".grade").html(Math.round(result.grade*100) / 100);
                     }
                     $(element).find(".completion_status").html(result.completion_status);
                 }

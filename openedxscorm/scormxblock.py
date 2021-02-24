@@ -339,7 +339,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         completion_percent = None
         success_status = None
         completion_status = None
-        context = {"result": "success"}
+        lesson_score = None
 
         if name == "cmi.core.lesson_status":
             lesson_status = data.get("value")
@@ -352,8 +352,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         elif name == "cmi.completion_status":
             completion_status = data.get("value")
         elif name in ["cmi.core.score.raw", "cmi.score.raw"] and self.has_score:
-            self.lesson_score = float(data.get("value", 0)) / 100.0
-            context.update({"lesson_score": self.lesson_score})
+            lesson_score = float(data.get("value", 0)) / 100.0
         elif name == "cmi.progress_measure":
             try:
                 completion_percent = float(data.get("value"))
@@ -362,6 +361,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         else:
             self.scorm_data[name] = data.get("value", "")
 
+        context = {"result": "success"}
+        if lesson_score is not None:
+            self.lesson_score = lesson_score
+            context.update({"grade": self.get_grade()})
         if completion_percent is not None:
             self.emit_completion(completion_percent)
         if completion_status:
