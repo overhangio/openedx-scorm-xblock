@@ -1,6 +1,6 @@
 variables:
     TUTOR_PYPI_PACKAGE: openedx-scorm-xblock
-    OPENEDX_RELEASE: koa
+    OPENEDX_RELEASE: lilac
 
 include:
   - project: 'community/tutor-ci'
