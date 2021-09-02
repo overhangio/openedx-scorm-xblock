@@ -31,6 +31,14 @@ For non-Tutor platforms, you should install the `Python package from Pypi <https
 
     pip install openedx-scorm-xblock
 
+In the Open edX native installation, you will have to modify the files ``/edx/etc/lms.yml`` and ``/edx/etc/studio.yml``. Replace::
+
+    X_FRAME_OPTIONS: DENY
+
+By::
+
+    X_FRAME_OPTIONS: SAMEORIGIN
+
 Usage
 -----
 
