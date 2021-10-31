@@ -74,6 +74,67 @@ function ScormXBlock(runtime, element, settings) {
         window.dispatchEvent(new Event('resize'));
     }
 
+    // Student reports
+    function initReports() {
+        $(element).find("button.view-reports").on("click", function() {
+            viewReports();
+        });
+        $(element).find("button.reload-report").on("click", function() {
+            reloadReport();
+        });
+        // https://api.jqueryui.com/autocomplete/
+        // note that we don't use $(...).autocomplete({}). That's because the lms has an obsolete
+        // autocomplete jquery plugin which overrides the jquery.ui.autocomplete widget.
+        // So we need to specify the widget namespace when we call "autocomplete"
+        $.ui.autocomplete(
+            {
+                source: searchStudents,
+                select: viewReport,
+            }, $(element).find(".scorm-reports input.search-students")
+        );
+    }
+    function searchStudents(request, response) {
+        $.ajax({
+            url: runtime.handlerUrl(element, 'scorm_search_students'),
+            data: {
+                'id': request.term
+            },
+        }).success(function(data) {
+            response(data);
+        }).fail(function() {
+            response([])
+        });
+    }
+    function viewReports() {
+        // Display reports on button click
+        $(element).find(".reports-togglable").toggleClass("reports-togglable-off");
+    }
+    var studentId = null;
+    function viewReport(event, ui) {
+        studentId = ui.item.data.student_id;
+        getReport(studentId);
+    }
+    function reloadReport() {
+        getReport(studentId)
+    }
+    function getReport(studentId) {
+        var reportElement = $(element).find(".scorm-reports .report");
+        reportElement.html("loading...");
+        var getReportUrl = runtime.handlerUrl(element, 'scorm_get_student_state');
+        $.ajax({
+            url: getReportUrl,
+            data: {
+                'id': studentId
+            },
+        }).success(function(data) {
+            reportElement.html(renderjson.set_show_to_level(1)(data));
+        }).fail(function() {
+            reportElement.html("no data found");
+        }).complete(function() {
+            $(element).find(".reload-report").removeClass("reports-togglable-off");
+        });
+    }
+
     // We only make calls to the get_value handler when absolutely required.
     // These calls are synchronous and they can easily clog the scorm display.
     var uncachedValues = [
@@ -179,5 +240,6 @@ function ScormXBlock(runtime, element, settings) {
         $(element).find("button.full-screen-off").on("click", function() {
             exitFullscreen();
         });
+        initReports();
     });
 }

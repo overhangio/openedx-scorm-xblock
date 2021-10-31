@@ -46,6 +46,7 @@
 
 .openedxscorm_block .full-screen-scorm .scorm_button {
     padding: 20px;
+    height: 35px;
 }
 
 .openedxscorm_block .full-screen-off {
@@ -57,5 +58,12 @@
 }
 
 .openedxscorm_block .full-screen-scorm .full-screen-on {
+    display: none;
+}
+
+.openedxscorm_block .scorm-reports input {
+    width: 500px;
+}
+.openedxscorm_block .reports-togglable-off {
     display: none;
 }

@@ -12,10 +12,10 @@
 
     <div class="js-scorm-block">
         <div class="scorm_button">
-            <button class="js-button-full-screen full-screen-on">
+            <button class="full-screen-on">
                 {% trans "Fullscreen" %}
             </button>
-            <button class="js-button-full-screen full-screen-off">
+            <button class="full-screen-off">
                 {% trans "Exit fullscreen" %}
             </button>
         </div>
@@ -24,5 +24,17 @@
     </div>
     {% elif message %}
     <p>{{ message }}</p>
+    {% endif %}
+    {% if index_page_url and can_view_student_reports %}
+    <div class="scorm-reports">
+        <button class="view-reports reports-togglable">
+            {% trans "View SCORM reports" %}
+        </button>
+        <span class="reports-togglable reports-togglable-off">
+            <input type="text" placeholder="Student username or email" class="search-students">
+            <button class="reload-report reports-togglable-off" alt="reload report">🗘</button>
+            <div class="report"></div>
+        </span>
+    </div>
     {% endif %}
 </div>

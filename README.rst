@@ -17,6 +17,7 @@ This XBlock is not compatible with its `ancestor <https://github.com/raccoongang
 Features
 --------
 
+* Full SCORM data student reports for staff users
 * Optional auto-fullscreen
 * Integrated grading, compatible with rescoring
 * Compatibility with `Django storages <https://django-storages.readthedocs.io/>`__, customizable storage backend
