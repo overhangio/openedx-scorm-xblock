@@ -1,31 +1,39 @@
 {% load i18n %}
 
-<div class="openedxscorm_block">
+<div class="scorm-xblock">
     {% if index_page_url %}
 
     {% if scorm_xblock.has_score %}
     <p>
         (<span class="grade">{{ grade|floatformat }}</span>/{{ scorm_xblock.weight|floatformat }} {% trans "points" %})
-        <span class="completion_status">{% trans completion_status %}</span>
+        <span class="completion-status">{% trans completion_status %}</span>
     </p>
     {% endif %}
 
-    <div class="js-scorm-block">
-        <div class="scorm_button">
-            <button class="full-screen-on">
+    <div class="scorm-content">
+        <div class="fullscreen-controls">
+            <button class="enter-fullscreen">
                 {% trans "Fullscreen" %}
             </button>
-            <button class="full-screen-off">
+            <button class="exit-fullscreen">
                 {% trans "Exit fullscreen" %}
             </button>
         </div>
 
-        <iframe class="scorm_object" src="{{ index_page_url }}" width="{% if scorm_xblock.width %}{{ scorm_xblock.width }}{% else %}100%{% endif %}" {% if scorm_xblock.height %}height="{{ scorm_xblock.height }}" {% endif %}></iframe>
+        <div class="popup-wrapper">
+            <button class="popup-launcher">{% trans "Launch unit in new window" %} <span class="icon fa fa-external-link"></span></button>
+        </div>
+        <iframe
+            class="scorm-embedded"
+            src="{{ index_page_url }}"
+            width="{% if scorm_xblock.width %}{{ scorm_xblock.width }}{% else %}100%{% endif %}"
+            height="{% if scorm_xblock.height %}{{ scorm_xblock.height }}{% else %}450{% endif %}">
+        </iframe>
     </div>
     {% elif message %}
     <p>{{ message }}</p>
     {% endif %}
-    {% if index_page_url and can_view_student_reports %}
+    {% if can_view_student_reports %}
     <div class="scorm-reports">
         <button class="view-reports reports-togglable">
             {% trans "View SCORM reports" %}

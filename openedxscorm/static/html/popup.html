@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+{% load theme_pipeline %}
+<html>
+    <head>
+        <style>
+            body {
+                margin: 0;
+                text-align: center;
+            }
+            iframe {
+                border: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <iframe class="scorm-embedded" src="{{ index_page_url }}" width="{{ width }}" height="{{ height }}"></iframe>
+        <script>
+            window.resizeTo({{ width }} + 20, {{ height }} + 20);
+        </script>
+  </body>
+</html>

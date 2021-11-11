@@ -1,71 +1,20 @@
 function ScormXBlock(runtime, element, settings) {
-
-    function SCORM_12_API() {
-
-        this.LMSInitialize = function() {
-            return "true";
-        };
-
-        this.LMSFinish = function() {
-            return "true";
-        };
-
-        this.LMSGetValue = GetValue;
-        this.LMSSetValue = SetValue;
-
-        this.LMSCommit = function() {
-            return "true";
-        };
-
-        this.LMSGetLastError = function() {
-            return "0";
-        };
-
-        this.LMSGetErrorString = function(errorCode) {
-            return "Some Error";
-        };
-
-        this.LMSGetDiagnostic = function(errorCode) {
-            return "Some Diagnostic";
-        };
+    // Fullscreen
+    function initFullscreen() {
+      $(element).find("button.enter-fullscreen").on("click", function() {
+          enterFullscreen();
+      });
+      $(element).find("button.exit-fullscreen").on("click", function() {
+          exitFullscreen();
+      });
     }
-
-    function SCORM_2004_API() {
-        this.Initialize = function() {
-            return "true";
-        };
-
-        this.Terminate = function() {
-            return "true";
-        };
-
-        this.GetValue = GetValue;
-        this.SetValue = SetValue;
-
-        this.Commit = function() {
-            return "true";
-        };
-
-        this.GetLastError = function() {
-            return "0";
-        };
-
-        this.GetErrorString = function(errorCode) {
-            return "Some Error";
-        };
-
-        this.GetDiagnostic = function(errorCode) {
-            return "Some Diagnostic";
-        };
-    }
-
     var fullscreenOnNextEvent = true;
     function enterFullscreen() {
-        $(element).find(".js-scorm-block").addClass("full-screen-scorm");
+        $(element).find(".scorm-xblock").addClass("fullscreen-enabled");
         triggerResize();
     }
     function exitFullscreen() {
-        $(element).find(".js-scorm-block").removeClass("full-screen-scorm");
+        $(element).find(".scorm-xblock").removeClass("fullscreen-enabled");
         fullscreenOnNextEvent = true;
         triggerResize();
     }
@@ -74,7 +23,37 @@ function ScormXBlock(runtime, element, settings) {
         window.dispatchEvent(new Event('resize'));
     }
 
+    // Popup window
+    function initPopupWindow() {
+        if (!settings.popup_on_launch) {
+            return;
+        }
+        var popupWindowName = "openedx-scorm-xblock";
+        $(element).find(".scorm-xblock").addClass("can-popup");
+        $(element).find(".scorm-xblock .popup-launcher").on("click", function(event) {
+            var windowSpecs = "width=" + settings.popup_width + ",height=" + settings.popup_height;
+            windowSpecs += "menubar=no,tollbar=no";
+            var popupWindow = window.open(
+                runtime.handlerUrl(element, 'popup_window'),
+                popupWindowName, specs=windowSpecs
+            );
+            // Copy scorm API objects: scorm API calls will be redirected to this window
+            popupWindow.API = window.API;
+            popupWindow.API_1484_11 = window.API_1484_11;
+            // Close popup when main window is closed
+            // https://developer.mozilla.org/en-US/docs/Web/API/WindowEventHandlers/onbeforeunload
+            window.addEventListener('beforeunload', function (e) {
+                if(!popupWindow.closed) {
+                    // We don't prompt user for confirmation
+                    popupWindow.close();
+                    e.returnValue = '';
+                }
+            });
+        });
+    }
+
     // Student reports
+    var reportElement = $(element).find(".scorm-reports .report");
     function initReports() {
         $(element).find("button.view-reports").on("click", function() {
             viewReports();
@@ -100,10 +79,18 @@ function ScormXBlock(runtime, element, settings) {
                 'id': request.term
             },
         }).success(function(data) {
+            if(data.length === 0) {
+                noStudentFound()
+            }
             response(data);
         }).fail(function() {
+            noStudentFound()
             response([])
         });
+    }
+    function noStudentFound() {
+        reportElement.html("no student found");
+        $(element).find(".reload-report").addClass("reports-togglable-off");
     }
     function viewReports() {
         // Display reports on button click
@@ -118,7 +105,6 @@ function ScormXBlock(runtime, element, settings) {
         getReport(studentId)
     }
     function getReport(studentId) {
-        var reportElement = $(element).find(".scorm-reports .report");
         reportElement.html("loading...");
         var getReportUrl = runtime.handlerUrl(element, 'scorm_get_student_state');
         $.ajax({
@@ -217,7 +203,7 @@ function ScormXBlock(runtime, element, settings) {
                         // Properly display at most two decimals
                         $(element).find(".grade").html(Math.round(result.grade*100) / 100);
                     }
-                    $(element).find(".completion_status").html(result.completion_status);
+                    $(element).find(".completion-status").html(result.completion_status);
                 }
             },
             complete: function() {
@@ -228,17 +214,9 @@ function ScormXBlock(runtime, element, settings) {
     };
 
     $(function($) {
-        if (settings.scorm_version == 'SCORM_12') {
-            API = new SCORM_12_API();
-        } else {
-            API_1484_11 = new SCORM_2004_API();
-        }
-        $(element).find("button.full-screen-on").on("click", function() {
-            enterFullscreen();
-        });
-        $(element).find("button.full-screen-off").on("click", function() {
-            exitFullscreen();
-        });
+        initScorm(settings.scorm_version, GetValue, SetValue);
+        initFullscreen();
+        initPopupWindow();
         initReports();
     });
 }

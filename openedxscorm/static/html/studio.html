@@ -66,6 +66,17 @@
             </div>
             <span class="tip setting-help">{% trans field_fullscreen_on_launch.help %}</span>
         </li>
+
+        <li class="field comp-setting-entry is-set">
+            <div class="wrapper-comp-setting">
+                <label class="label setting-label" for="fullscreen_on_launch">{% trans field_popup_on_launch.display_name %}</label>
+                <select name="popup_on_launch" id="popup_on_launch">
+                    <option value="1" {% if scorm_xblock.popup_on_launch %}selected{% endif %}>{% trans "True" %}</option>
+                    <option value="0" {% if not scorm_xblock.popup_on_launch %}selected{% endif %}>{% trans "False" %}</option>
+                </select>
+            </div>
+            <span class="tip setting-help">{% trans field_popup_on_launch.help %}</span>
+        </li>
     </ul>
 
     <div class="xblock-actions">

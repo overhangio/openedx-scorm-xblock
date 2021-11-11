@@ -142,6 +142,16 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         default=False,
         scope=Scope.settings,
     )
+    popup_on_launch = Boolean(
+        display_name=_("Launch in pop-up window"),
+        help=_(
+            "Launch in pop-up window instead of embedding the SCORM content in "
+            "an iframe. Enable this for older packages that need to be run in "
+            "separate window."
+        ),
+        default=False,
+        scope=Scope.settings,
+    )
 
     has_author_view = True
 
@@ -177,6 +187,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         template = self.render_template("static/html/scormxblock.html", student_context)
         frag = Fragment(template)
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
+        frag.add_javascript(self.resource_string("static/js/src/scorm.js"))
         frag.add_javascript(self.resource_string("static/js/src/scormxblock.js"))
         frag.add_javascript(self.resource_string("static/js/vendor/renderjson.js"))
         frag.initialize_js(
@@ -184,6 +195,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             json_args={
                 "scorm_version": self.scorm_version,
                 "fullscreen_on_launch": self.fullscreen_on_launch,
+                "popup_on_launch": self.popup_on_launch,
+                "popup_width": self.width or 800,
+                "popup_height": self.height or 800,
                 "scorm_data": self.scorm_data,
             },
         )
@@ -199,6 +213,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             "field_width": self.fields["width"],
             "field_height": self.fields["height"],
             "field_fullscreen_on_launch": self.fields["fullscreen_on_launch"],
+            "field_popup_on_launch": self.fields["popup_on_launch"],
             "scorm_xblock": self,
         }
         studio_context.update(context or {})
@@ -223,6 +238,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         self.has_score = request.params["has_score"] == "1"
         self.weight = parse_float(request.params["weight"], 1)
         self.fullscreen_on_launch = request.params["fullscreen_on_launch"] == "1"
+        self.popup_on_launch = request.params["popup_on_launch"] == "1"
         self.icon_class = "problem" if self.has_score else "video"
 
         response = {"result": "success", "errors": []}
@@ -244,6 +260,21 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             response["errors"].append(e.args[0])
 
         return self.json_response(response)
+
+    @XBlock.handler
+    def popup_window(self, request, _suffix):
+        """
+        Standalone popup window
+        """
+        rendered = self.render_template(
+            "static/html/popup.html",
+            {
+                "index_page_url": self.index_page_url,
+                "width": self.width or 800,
+                "height": self.height or 800
+            },
+        )
+        return Response(body=rendered)
 
     def clean_storage(self):
         if self.storage.exists(self.extract_folder_base_path):

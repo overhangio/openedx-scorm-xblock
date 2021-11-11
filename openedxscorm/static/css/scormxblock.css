@@ -1,19 +1,21 @@
 /* CSS for ScormXBlock */
-.openedxscorm_block .scorm_object {
+.scorm-xblock .scorm-embedded {
     border: none;
 }
-
-.openedxscorm_block span.setting-input-file {
+.scorm-xblock span.setting-input-file {
     padding-left: 25%;
     margin-left: 14px;
     padding-top: 5px;
 }
-
-.openedxscorm_block span.setting-input-file span {
+.scorm-xblock span.setting-input-file span {
     font-weight: bold;
 }
+.scorm-xblock button {
+    height: 35px;
+}
 
-.openedxscorm_block .full-screen-scorm  .scorm_object {
+/* Fullscreen */
+.scorm-xblock.fullscreen-enabled .scorm-embedded {
     position: fixed;
     border: none;
     overflow: hidden;
@@ -25,8 +27,7 @@
     height: calc(100% - 65px);
     z-index: 10000;
 }
-
-.openedxscorm_block .full-screen-scorm {
+.scorm-xblock.fullscreen-enabled .scorm-content {
     position: fixed;
     border: none;
     overflow: hidden;
@@ -39,31 +40,40 @@
     z-index: 10000;
     background-color: #ffffff;
 }
-
-.openedxscorm_block .scorm_button {
+.scorm-xblock .fullscreen-controls {
     padding-bottom: 20px;
 }
-
-.openedxscorm_block .full-screen-scorm .scorm_button {
+.scorm-xblock.fullscreen-enabled .fullscreen-controls {
     padding: 20px;
-    height: 35px;
 }
-
-.openedxscorm_block .full-screen-off {
+.scorm-xblock button.exit-fullscreen {
     display: none;
 }
-
-.openedxscorm_block .full-screen-scorm .full-screen-off {
+.scorm-xblock.fullscreen-enabled button.exit-fullscreen {
     display: block;
 }
-
-.openedxscorm_block .full-screen-scorm .full-screen-on {
+.scorm-xblock.fullscreen-enabled button.enter-fullscreen,
+.scorm-xblock.fullscreen-enabled .scorm-reports {
     display: none;
 }
 
-.openedxscorm_block .scorm-reports input {
+/* Popup window */
+.scorm-xblock:not(.can-popup) .popup-wrapper {
+    display: none;
+}
+.scorm-xblock .popup-wrapper {
+    text-align: center;
+    padding: 20px;
+}
+.scorm-xblock.can-popup .fullscreen-controls,
+.scorm-xblock.can-popup .scorm-embedded {
+    display: none;
+}
+
+/* Reports */
+.scorm-xblock .scorm-reports input {
     width: 500px;
 }
-.openedxscorm_block .reports-togglable-off {
+.scorm-xblock .reports-togglable-off {
     display: none;
 }
