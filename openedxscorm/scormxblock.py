@@ -387,6 +387,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             context.update({"completion_status": completion_status})
         if success_status:
             self.success_status = success_status
+        if completion_status == "completed":
+            self.emit_completion(1)
         if success_status or completion_status == "completed":
             if self.has_score:
                 self.publish_grade()
