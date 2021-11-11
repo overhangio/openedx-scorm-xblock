@@ -215,7 +215,6 @@ function ScormXBlock(runtime, element, settings) {
                     var result = results[i];
                     if (typeof result.grade != "undefined") {
                         // Properly display at most two decimals
-                        console.log(result.grade, Math.round(result.grade*100) / 100)
                         $(element).find(".grade").html(Math.round(result.grade*100) / 100);
                     }
                     $(element).find(".completion_status").html(result.completion_status);
