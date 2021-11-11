@@ -413,6 +413,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Utility method used to rescore a problem.
         """
         self.lesson_score = score.raw_earned / self.weight
+        self.publish_grade()
 
     def max_score(self):
         """
