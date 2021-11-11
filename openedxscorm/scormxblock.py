@@ -351,11 +351,13 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
     def set_value(self, data):
         name = data.get("name")
+        value = data.get("value")
         completion_percent = None
         success_status = None
         completion_status = None
         lesson_score = None
 
+        self.scorm_data[name] = value
         if name == "cmi.core.lesson_status":
             lesson_status = data.get("value")
             if lesson_status in ["passed", "failed"]:
@@ -363,18 +365,19 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             elif lesson_status in ["completed", "incomplete"]:
                 completion_status = lesson_status
         elif name == "cmi.success_status":
-            success_status = data.get("value")
+            success_status = value
         elif name == "cmi.completion_status":
-            completion_status = data.get("value")
+            completion_status = value
         elif name in ["cmi.core.score.raw", "cmi.score.raw"] and self.has_score:
-            lesson_score = float(data.get("value", 0)) / 100.0
-        elif name == "cmi.progress_measure":
             try:
-                completion_percent = float(data.get("value"))
+                lesson_score = float(value) / 100.0
             except (ValueError, TypeError):
                 pass
-        else:
-            self.scorm_data[name] = data.get("value", "")
+        elif name == "cmi.progress_measure":
+            try:
+                completion_percent = float(value)
+            except (ValueError, TypeError):
+                pass
 
         context = {"result": "success"}
         if lesson_score is not None:
