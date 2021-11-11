@@ -418,6 +418,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         if self.has_score:
             self.lesson_score = score.raw_earned
             self.publish_grade()
+            self.emit_completion(1)
 
     def max_score(self):
         """
