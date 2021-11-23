@@ -19,6 +19,7 @@ from six import string_types
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.completable import CompletableXBlockMixin
+from xblock.exceptions import JsonHandlerError
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
 
 try:
@@ -347,7 +348,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
     @XBlock.json_handler
     def scorm_set_value(self, data, _suffix):
-        return self.set_value(data)
+        try:
+            return self.set_value(data)
+        except ValueError as e:
+            return JsonHandlerError(400, e.args[0]).get_response()
 
     def set_value(self, data):
         name = data.get("name")
@@ -369,15 +373,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         elif name == "cmi.completion_status":
             completion_status = value
         elif name in ["cmi.core.score.raw", "cmi.score.raw"] and self.has_score:
-            try:
-                lesson_score = float(value) / 100.0
-            except (ValueError, TypeError):
-                pass
+            lesson_score = parse_validate_positive_float(value, name) / 100.0
         elif name == "cmi.progress_measure":
-            try:
-                completion_percent = float(value)
-            except (ValueError, TypeError):
-                pass
+            completion_percent = parse_validate_positive_float(value, name)
 
         context = {"result": "success"}
         if lesson_score is not None:
@@ -665,6 +663,18 @@ def parse_float(value, default):
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def parse_validate_positive_float(value, name):
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(
+            "Could not parse value of '{}' (must be float): {}".format(name, value)
+        )
+    if parsed < 0:
+        raise ValueError("Value of '{}' must not be negative: {}".format(name, value))
+    return parsed
 
 
 class ScormError(Exception):
