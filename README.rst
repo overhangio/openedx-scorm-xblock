@@ -20,7 +20,7 @@ Features
 * Optional auto-fullscreen
 * Integrated grading, compatible with rescoring
 * Compatibility with `Django storages <https://django-storages.readthedocs.io/>`__, customizable storage backend
-* Works with Lilac, the latest Open edX release (use v11 for Koa, v10 for Juniper and v9 for Ironwood)
+* Works with Maple, the latest Open edX release (use v12 for Lilac, v11 for Koa, v10 for Juniper and v9 for Ironwood)
 
 Installation
 ------------
