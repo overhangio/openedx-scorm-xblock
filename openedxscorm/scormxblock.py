@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 @XBlock.wants("settings")
+@XBlock.wants("user")
 class ScormXBlock(XBlock, CompletableXBlockMixin):
     """
     When a user uploads a Scorm package, the zip file is stored in:
@@ -371,6 +372,12 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             return {"value": self.success_status}
         if name in ["cmi.core.score.raw", "cmi.score.raw"]:
             return {"value": self.lesson_score * 100}
+        user_service = self.runtime.service(self, 'user')
+        xb_user = user_service.get_current_user()
+        if name in ['cmi.core.student_id','cmi.learner_id']:
+            return {'value': xb_user.opt_attrs.get('edx-platform.user_id')}
+        if name in ['cmi.core.student_name','cmi.learner_name']:
+            return {'value': xb_user.opt_attrs.get('edx-platform.username')}
         return {"value": self.scorm_data.get(name, "")}
 
     @XBlock.json_handler

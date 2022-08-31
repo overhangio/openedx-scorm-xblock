@@ -3,7 +3,7 @@ import json
 import unittest
 
 
-from ddt import ddt, data
+from ddt import ddt, data, unpack
 from freezegun import freeze_time
 import mock
 from xblock.field_data import DictFieldData
@@ -275,3 +275,49 @@ class ScormXBlockTests(unittest.TestCase):
         )
 
         self.assertEqual(response.json, {"value": block.scorm_data[value["name"]]})
+
+    @data(
+        ({'name': 'cmi.core.student_id'}, 'edx-platform.user_id', 23),
+        ({'name': 'cmi.core.student_name'}, 'edx-platform.username', 'supername')
+    )
+    @unpack
+    def test_scorm_12_get_student_data(self, request_data, key, value):
+        service_user_mock = mock.Mock()
+        current_user_mock = mock.Mock()
+        current_user_mock.opt_attrs = {
+            key : value
+        }
+        service_user_mock.configure_mock(**{'get_current_user.return_value': current_user_mock})
+
+        runtime = mock.Mock()
+        runtime.service.return_value = service_user_mock
+
+        block = self.make_one(runtime=runtime)
+
+        response = block.scorm_get_value(
+            mock.Mock(method="POST", body=json.dumps(request_data))
+        )
+        self.assertEqual(response.json, {'value': value})
+        
+    @data(
+        ({'name': 'cmi.learner_id'}, 'edx-platform.user_id', 23),
+        ({'name': 'cmi.learner_name'}, 'edx-platform.username', 'supername')
+    )
+    @unpack
+    def test_scorm_2004_get_student_data(self, request_data, key, value):
+        service_user_mock = mock.Mock()
+        current_user_mock = mock.Mock()
+        current_user_mock.opt_attrs = {
+            key : value
+        }
+        service_user_mock.configure_mock(**{'get_current_user.return_value': current_user_mock})
+
+        runtime = mock.Mock()
+        runtime.service.return_value = service_user_mock
+
+        block = self.make_one(runtime=runtime)
+
+        response = block.scorm_get_value(
+            mock.Mock(method="POST", body=json.dumps(request_data))
+        )
+        self.assertEqual(response.json, {'value': value})    
