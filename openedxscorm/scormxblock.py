@@ -161,6 +161,12 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         template = Template(template_str)
         return template.render(Context(context))
 
+    def get_current_user_attr(self, attr: str):
+        return self.get_current_user().opt_attrs.get(attr)
+
+    def get_current_user(self):
+        return self.runtime.service(self, "user").get_current_user()
+
     @staticmethod
     def resource_string(path):
         """Handy helper for getting static resources from our kit."""
@@ -272,7 +278,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             {
                 "index_page_url": self.index_page_url,
                 "width": self.width or 800,
-                "height": self.height or 800
+                "height": self.height or 800,
             },
         )
         return Response(body=rendered)
@@ -372,12 +378,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             return {"value": self.success_status}
         if name in ["cmi.core.score.raw", "cmi.score.raw"]:
             return {"value": self.lesson_score * 100}
-        user_service = self.runtime.service(self, 'user')
-        xb_user = user_service.get_current_user()
-        if name in ['cmi.core.student_id','cmi.learner_id']:
-            return {'value': xb_user.opt_attrs.get('edx-platform.user_id')}
-        if name in ['cmi.core.student_name','cmi.learner_name']:
-            return {'value': xb_user.opt_attrs.get('edx-platform.username')}
+        if name in ["cmi.core.student_id", "cmi.learner_id"]:
+            return {"value": self.get_current_user_attr("edx-platform.user_id")}
+        if name in ["cmi.core.student_name", "cmi.learner_name"]:
+            return {"value": self.get_current_user_attr("edx-platform.username")}
         return {"value": self.scorm_data.get(name, "")}
 
     @XBlock.json_handler

@@ -1,6 +1,6 @@
 variables:
     TUTOR_PYPI_PACKAGE: openedx-scorm-xblock
-    OPENEDX_RELEASE: maple
+    OPENEDX_RELEASE: nutmeg
     GITHUB_REPO: overhangio/openedx-scorm-xblock
 
 include:
