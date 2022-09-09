@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n l10n %}
 
 <div class="wrapper-comp-settings is-active editor-with-buttons" id="settings-tab">
     <ul class="list-input settings-list">
@@ -35,7 +35,7 @@
         <li class="field comp-setting-entry is-set">
             <div class="wrapper-comp-setting">
                 <label class="label setting-label" for="weight">{% trans field_weight.display_name %}</label>
-                <input class="input setting-input" name="weight" id="weight" value="{{ scorm_xblock.weight }}" type="number" />
+                <input class="input setting-input" name="weight" id="weight" value="{{ scorm_xblock.weight|unlocalize }}" type="number" />
             </div>
             <span class="tip setting-help">{% trans field_weight.help %}</span>
         </li>
