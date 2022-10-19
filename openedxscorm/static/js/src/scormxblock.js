@@ -17,20 +17,21 @@ function ScormXBlock(runtime, element, settings) {
         }
       } else {
         // Find scorm-xblock content
-        const element = $('.scorm-xblock').get(0);
-        if (element.requestFullscreen) {
-          element.requestFullscreen();
-        } else if (element.mozRequestFullScreen) {
-          element.mozRequestFullScreen();
-        } else if (element.webkitRequestFullscreen) {
-          element.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
-        } else if (element.msRequestFullscreen) {
-          element.msRequestFullscreen();
+        const xblock = $(element).find(".scorm-xblock").get(0);
+        if (xblock.requestFullscreen) {
+          xblock.requestFullscreen();
+        } else if (xblock.mozRequestFullScreen) {
+          xblock.mozRequestFullScreen();
+        } else if (xblock.webkitRequestFullscreen) {
+          xblock.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+        } else if (xblock.msRequestFullscreen) {
+          xblock.msRequestFullscreen();
         }
       }
     }
 
     // Add handler to enable exit fullscreen mode by ESC key
+    // We are relying on older event names for backward compatibility https://developer.mozilla.org/en-US/docs/Web/API/Document/fullscreenchange_event
     if (document.addEventListener) {
       document.addEventListener('fullscreenchange', exitScormFullScreenHandler, false);
       document.addEventListener('mozfullscreenchange', exitScormFullScreenHandler, false);
@@ -43,7 +44,7 @@ function ScormXBlock(runtime, element, settings) {
     // For the correct block rendering in the iframe learning microfrontend app
     function exitScormFullScreenHandler() {
       if (!document.webkitIsFullScreen && !document.mozFullScreen && !document.msFullscreenElement) {
-        $('.scorm-xblock').removeClass('fullscreen-enabled');
+        $(element).find(".scorm-xblock").removeClass("fullscreen-enabled");
       }
     }
 
@@ -59,14 +60,14 @@ function ScormXBlock(runtime, element, settings) {
     var fullscreenOnNextEvent = true;
     function enterFullscreen() {
         $(element).find(".scorm-xblock").addClass("fullscreen-enabled");
-        triggerResize();
         toggleScormFullScreen();
+        triggerResize();
     }
     function exitFullscreen() {
         $(element).find(".scorm-xblock").removeClass("fullscreen-enabled");
         fullscreenOnNextEvent = true;
-        triggerResize();
         toggleScormFullScreen();
+        triggerResize();
     }
     function triggerResize() {
         // This is required to trigger the actual content resize in some packages
