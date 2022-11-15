@@ -101,6 +101,11 @@ Run unit tests with::
 
     $ NO_PREREQ_INSTALL=1 paver test_system -s lms -t openedxscorm
 
+Troubleshooting
+---------------
+
+This XBlock is maintained by Régis Behmo from `Overhang.IO <https://overhang.io>`__. Community support is available from the official `Open edX forum <https://discuss.openedx.org>`__. Do you need help with this plugin? See the `troubleshooting <https://docs.tutor.overhang.io/troubleshooting.html>`__ section from the Tutor documentation.
+
 License
 -------
 

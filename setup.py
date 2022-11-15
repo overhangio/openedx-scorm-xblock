@@ -26,17 +26,19 @@ with io.open(os.path.join(here, "README.rst"), "rt", encoding="utf8") as f:
 
 setup(
     name="openedx-scorm-xblock",
-    version="14.0.0",
+    version="14.0.1",
     description="Scorm XBlock for Open edX",
     long_description=readme,
     long_description_content_type="text/x-rst",
-    author="Overhang.io",
+    author="Overhang.IO",
     author_email="contact@overhang.io",
+    maintainer="Overhang.IO",
+    maintainer_email="regis@overhang.io",
     project_urls={
         "Documentation": "https://github.com/overhangio/openedx-scorm-xblock",
         "Code": "https://github.com/overhangio/openedx-scorm-xblock",
         "Issue tracker": "https://github.com/overhangio/openedx-scorm-xblock/issues",
-        "Community": "https://discuss.overhang.io",
+        "Community": "https://discuss.openedx.com",
     },
     packages=["openedxscorm"],
     python_requires=">=3.8",
