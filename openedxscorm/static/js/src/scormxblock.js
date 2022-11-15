@@ -1,61 +1,61 @@
 function ScormXBlock(runtime, element, settings) {
     // To correct fullscreen mode if it appears in the microfrontend app
     function toggleScormFullScreen() {
-      // Detect if already full screen then exit from it
-      // Otherwise go fullscreen
-      if (
-          document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement
-      ) {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        } else if (document.mozCancelFullScreen) {
-          document.mozCancelFullScreen();
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen();
-        } else if (document.msExitFullscreen) {
-          document.msExitFullscreen();
+        // Detect if already full screen then exit from it
+        // Otherwise go fullscreen
+        if (
+            document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement
+        ) {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+                document.mozCancelFullScreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        } else {
+            // Find scorm-xblock content
+            const xblock = $(element).find(".scorm-xblock").get(0);
+            if (xblock.requestFullscreen) {
+                xblock.requestFullscreen();
+            } else if (xblock.mozRequestFullScreen) {
+                xblock.mozRequestFullScreen();
+            } else if (xblock.webkitRequestFullscreen) {
+                xblock.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+            } else if (xblock.msRequestFullscreen) {
+                xblock.msRequestFullscreen();
+            }
         }
-      } else {
-        // Find scorm-xblock content
-        const xblock = $(element).find(".scorm-xblock").get(0);
-        if (xblock.requestFullscreen) {
-          xblock.requestFullscreen();
-        } else if (xblock.mozRequestFullScreen) {
-          xblock.mozRequestFullScreen();
-        } else if (xblock.webkitRequestFullscreen) {
-          xblock.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
-        } else if (xblock.msRequestFullscreen) {
-          xblock.msRequestFullscreen();
-        }
-      }
     }
 
     // Add handler to enable exit fullscreen mode by ESC key
     // We are relying on older event names for backward compatibility https://developer.mozilla.org/en-US/docs/Web/API/Document/fullscreenchange_event
     if (document.addEventListener) {
-      document.addEventListener('fullscreenchange', exitScormFullScreenHandler, false);
-      document.addEventListener('mozfullscreenchange', exitScormFullScreenHandler, false);
-      document.addEventListener('MSFullscreenChange', exitScormFullScreenHandler, false);
-      document.addEventListener('webkitfullscreenchange', exitScormFullScreenHandler, false);
+        document.addEventListener('fullscreenchange', exitScormFullScreenHandler, false);
+        document.addEventListener('mozfullscreenchange', exitScormFullScreenHandler, false);
+        document.addEventListener('MSFullscreenChange', exitScormFullScreenHandler, false);
+        document.addEventListener('webkitfullscreenchange', exitScormFullScreenHandler, false);
     }
 
     // If user exit fullscreen by the keyboard button
     // Remove 'fullscreen-enabled' class from the scorm-xblock content
     // For the correct block rendering in the iframe learning microfrontend app
     function exitScormFullScreenHandler() {
-      if (!document.webkitIsFullScreen && !document.mozFullScreen && !document.msFullscreenElement) {
-        $(element).find(".scorm-xblock").removeClass("fullscreen-enabled");
-      }
+        if (!document.webkitIsFullScreen && !document.mozFullScreen && !document.msFullscreenElement) {
+            $(element).find(".scorm-xblock").removeClass("fullscreen-enabled");
+        }
     }
 
     // Fullscreen
     function initFullscreen() {
-      $(element).find("button.enter-fullscreen").on("click", function() {
-          enterFullscreen();
-      });
-      $(element).find("button.exit-fullscreen").on("click", function() {
-          exitFullscreen();
-      });
+        $(element).find("button.enter-fullscreen").on("click", function () {
+            enterFullscreen();
+        });
+        $(element).find("button.exit-fullscreen").on("click", function () {
+            exitFullscreen();
+        });
     }
     var fullscreenOnNextEvent = true;
     function enterFullscreen() {
@@ -81,12 +81,12 @@ function ScormXBlock(runtime, element, settings) {
         }
         var popupWindowName = "openedx-scorm-xblock";
         $(element).find(".scorm-xblock").addClass("can-popup");
-        $(element).find(".scorm-xblock .popup-launcher").on("click", function(event) {
+        $(element).find(".scorm-xblock .popup-launcher").on("click", function (event) {
             var windowSpecs = "width=" + settings.popup_width + ",height=" + settings.popup_height;
             windowSpecs += "menubar=no,tollbar=no";
             var popupWindow = window.open(
                 runtime.handlerUrl(element, 'popup_window'),
-                popupWindowName, specs=windowSpecs
+                popupWindowName, specs = windowSpecs
             );
             // Copy scorm API objects: scorm API calls will be redirected to this window
             popupWindow.API = window.API;
@@ -94,7 +94,7 @@ function ScormXBlock(runtime, element, settings) {
             // Close popup when main window is closed
             // https://developer.mozilla.org/en-US/docs/Web/API/WindowEventHandlers/onbeforeunload
             window.addEventListener('beforeunload', function (e) {
-                if(!popupWindow.closed) {
+                if (!popupWindow.closed) {
                     // We don't prompt user for confirmation
                     popupWindow.close();
                     e.returnValue = '';
@@ -106,10 +106,10 @@ function ScormXBlock(runtime, element, settings) {
     // Student reports
     var reportElement = $(element).find(".scorm-reports .report");
     function initReports() {
-        $(element).find("button.view-reports").on("click", function() {
+        $(element).find("button.view-reports").on("click", function () {
             viewReports();
         });
-        $(element).find("button.reload-report").on("click", function() {
+        $(element).find("button.reload-report").on("click", function () {
             reloadReport();
         });
         // https://api.jqueryui.com/autocomplete/
@@ -129,12 +129,12 @@ function ScormXBlock(runtime, element, settings) {
             data: {
                 'id': request.term
             },
-        }).success(function(data) {
-            if(data.length === 0) {
+        }).success(function (data) {
+            if (data.length === 0) {
                 noStudentFound()
             }
             response(data);
-        }).fail(function() {
+        }).fail(function () {
             noStudentFound()
             response([])
         });
@@ -163,11 +163,11 @@ function ScormXBlock(runtime, element, settings) {
             data: {
                 'id': studentId
             },
-        }).success(function(data) {
+        }).success(function (data) {
             reportElement.html(renderjson.set_show_to_level(1)(data));
-        }).fail(function() {
+        }).fail(function () {
             reportElement.html("no data found");
-        }).complete(function() {
+        }).complete(function () {
             $(element).find(".reload-report").removeClass("reports-togglable-off");
         });
     }
@@ -182,7 +182,7 @@ function ScormXBlock(runtime, element, settings) {
         "cmi.score.raw"
     ];
     var getValueUrl = runtime.handlerUrl(element, 'scorm_get_value');
-    var GetValue = function(cmi_element) {
+    var GetValue = function (cmi_element) {
         if (cmi_element in uncachedValues) {
             var response = $.ajax({
                 type: "POST",
@@ -203,7 +203,7 @@ function ScormXBlock(runtime, element, settings) {
     var setValueEvents = [];
     var processingSetValueEventsQueue = false;
     var setValuesUrl = runtime.handlerUrl(element, 'scorm_set_values');
-    var SetValue = function(cmi_element, value) {
+    var SetValue = function (cmi_element, value) {
         // The first event causes the module to go fullscreen
         // when the setting is enabled
         if (fullscreenOnNextEvent) {
@@ -247,24 +247,24 @@ function ScormXBlock(runtime, element, settings) {
             type: "POST",
             url: setValuesUrl,
             data: JSON.stringify(data),
-            success: function(results) {
+            success: function (results) {
                 for (var i = 0; i < results.length; i += 1) {
                     var result = results[i];
                     if (typeof result.grade != "undefined") {
                         // Properly display at most two decimals
-                        $(element).find(".grade").html(Math.round(result.grade*100) / 100);
+                        $(element).find(".grade").html(Math.round(result.grade * 100) / 100);
                     }
                     $(element).find(".completion-status").html(result.completion_status);
                 }
             },
-            complete: function() {
+            complete: function () {
                 // Recursive call to itself
                 processSetValueQueueItems();
             }
         });
     };
 
-    $(function($) {
+    $(function ($) {
         initScorm(settings.scorm_version, GetValue, SetValue);
         initFullscreen();
         initPopupWindow();

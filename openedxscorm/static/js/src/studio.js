@@ -2,7 +2,7 @@ function ScormStudioXBlock(runtime, element) {
 
     var handlerUrl = runtime.handlerUrl(element, 'studio_submit');
 
-    $(element).find('.save-button').bind('click', function() {
+    $(element).find('.save-button').bind('click', function () {
         var form_data = new FormData();
         var file_data = $(element).find('#scorm_file').prop('files')[0];
         var display_name = $(element).find('input[name=display_name]').val();
@@ -34,12 +34,12 @@ function ScormStudioXBlock(runtime, element) {
             processData: false,
             data: form_data,
             type: "POST",
-            complete: function() {
+            complete: function () {
                 $(this).removeClass("disabled");
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.errors.length > 0) {
-                    response.errors.forEach(function(error) {
+                    response.errors.forEach(function (error) {
                         runtime.notify("error", {
                             "message": error,
                             "title": "Scorm component save error"
@@ -55,7 +55,7 @@ function ScormStudioXBlock(runtime, element) {
 
     });
 
-    $(element).find('.cancel-button').bind('click', function() {
+    $(element).find('.cancel-button').bind('click', function () {
         runtime.notify('cancel', {});
     });
 
