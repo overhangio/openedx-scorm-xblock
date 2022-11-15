@@ -10,7 +10,6 @@ function ScormStudioXBlock(runtime, element) {
         var weight = $(element).find('input[name=weight]').val();
         var width = $(element).find('input[name=width]').val();
         var height = $(element).find('input[name=height]').val();
-        var fullscreen_on_launch = $(element).find('select[name=fullscreen_on_launch]').val();
         var popup_on_launch = $(element).find('select[name=popup_on_launch]').val();
 
         form_data.append('file', file_data);
@@ -19,7 +18,6 @@ function ScormStudioXBlock(runtime, element) {
         form_data.append('weight', weight);
         form_data.append('width', width);
         form_data.append('height', height);
-        form_data.append('fullscreen_on_launch', fullscreen_on_launch);
         form_data.append('popup_on_launch', popup_on_launch);
         runtime.notify('save', {
             state: 'start'
