@@ -139,7 +139,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
     fullscreen_on_launch = Boolean(
         display_name=_("Fullscreen on launch"),
-        help=_("Display in fullscreen mode on launch"),
+        help=_(
+            "Display in fullscreen mode on launch."
+            "NOTE: this feature will not work in the MFE application."
+        ),
         default=False,
         scope=Scope.settings,
     )
