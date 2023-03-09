@@ -48,12 +48,6 @@ In the Studio, go to the advanced settings of your course ("Settings" 🡒 "Adva
 
 Go back to your course content. In the "Add New Component" section, click "Advanced", and then "Scorm module". Click "Edit" on the newly-created module: this is where you will upload your content package. It should be a ``.zip`` file containing an ``imsmanifest.xml`` file at the root. The content of the package will be displayed in the Studio and the LMS after you click "Save".
 
-The people at `Appsembler <https://appsembler.com/>`__ have created a great video that showcases some of the features of this XBlock:
-
-.. image:: https://github.com/overhangio/openedx-scorm-xblock/raw/master/screenshots/youtube.png
-    :alt: Open edX Scorm XBlock video
-    :target: https://www.youtube.com/watch?v=SnvIG7nqJLg&feature=youtu.be
-
 Advanced configuration
 ----------------------
 
