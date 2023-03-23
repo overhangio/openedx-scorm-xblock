@@ -1,0 +1,118 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2023-03-23 14:46+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: scormxblock.py:87
+msgid "Display Name"
+msgstr ""
+
+#: scormxblock.py:88
+msgid "Display name for this module"
+msgstr ""
+
+#: scormxblock.py:93
+msgid "Path to the index page in scorm file"
+msgstr ""
+
+#: scormxblock.py:110
+msgid "Weight"
+msgstr ""
+
+#: scormxblock.py:111
+msgid "Weight/Maximum grade"
+msgstr ""
+
+#: scormxblock.py:115
+msgid "Scored"
+msgstr ""
+
+#: scormxblock.py:117
+msgid ""
+"Select False if this component will not receive a numerical score from the "
+"Scorm"
+msgstr ""
+
+#: scormxblock.py:129
+msgid "Display width (px)"
+msgstr ""
+
+#: scormxblock.py:130
+msgid "Width of iframe (default: 100%)"
+msgstr ""
+
+#: scormxblock.py:134
+msgid "Display height (px)"
+msgstr ""
+
+#: scormxblock.py:135
+msgid "Height of iframe"
+msgstr ""
+
+#: scormxblock.py:140
+msgid "Launch in pop-up window"
+msgstr ""
+
+#: scormxblock.py:142
+msgid ""
+"Launch in pop-up window instead of embedding the SCORM content in an iframe. "
+"Enable this for older packages that need to be run in separate window."
+msgstr ""
+
+#: static/html/scormxblock.html:8
+msgid "points"
+msgstr ""
+
+#: static/html/scormxblock.html:16
+msgid "Fullscreen"
+msgstr ""
+
+#: static/html/scormxblock.html:19
+msgid "Exit fullscreen"
+msgstr ""
+
+#: static/html/scormxblock.html:24
+msgid "Launch unit in new window"
+msgstr ""
+
+#: static/html/scormxblock.html:39
+msgid "View SCORM reports"
+msgstr ""
+
+#: static/html/studio.html:16
+msgid "Upload .zip package"
+msgstr ""
+
+#: static/html/studio.html:20
+msgid "Currently:"
+msgstr ""
+
+#: static/html/studio.html:28
+msgid "True"
+msgstr ""
+
+#: static/html/studio.html:29
+msgid "False"
+msgstr ""
+
+#: static/html/studio.html:63
+msgid "Save"
+msgstr ""
+
+#: static/html/studio.html:66
+msgid "Cancel"
+msgstr ""
