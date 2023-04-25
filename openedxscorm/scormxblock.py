@@ -21,6 +21,7 @@ from xblock.core import XBlock
 from xblock.completable import CompletableXBlockMixin
 from xblock.exceptions import JsonHandlerError
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
+from xblockutils.resources import ResourceLoader
 
 try:
     try:
@@ -41,9 +42,12 @@ def _(text):
 
 logger = logging.getLogger(__name__)
 
+loader = ResourceLoader(__name__)
+
 
 @XBlock.wants("settings")
 @XBlock.wants("user")
+@XBlock.needs("i18n")
 class ScormXBlock(XBlock, CompletableXBlockMixin):
     """
     When a user uploads a Scorm package, the zip file is stored in:
@@ -167,11 +171,12 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         return data.decode("utf8")
 
     def author_view(self, context=None):
+        i18n_ = self.runtime.service(self, "i18n").ugettext
         context = context or {}
         if not self.index_page_path:
             context[
                 "message"
-            ] = "Click 'Edit' to modify this module and upload a new SCORM package."
+            ] = i18n_("Click 'Edit' to modify this module and upload a new SCORM package.")
         context["can_view_student_reports"] = True
         return self.student_view(context=context)
 
@@ -205,6 +210,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def studio_view(self, context=None):
         # Note that we cannot use xblockutils's StudioEditableXBlockMixin because we
         # need to support package file uploads.
+
         studio_context = {
             "field_display_name": self.fields["display_name"],
             "field_has_score": self.fields["has_score"],
@@ -215,8 +221,14 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             "scorm_xblock": self,
         }
         studio_context.update(context or {})
-        template = self.render_template("static/html/studio.html", studio_context)
-        frag = Fragment(template)
+
+        frag = Fragment()
+        frag.add_content(loader.render_django_template(
+            'static/html/studio.html',
+            context=studio_context,
+            i18n_service=self.runtime.service(self, "i18n"),
+        ))
+        
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/studio.js"))
         frag.initialize_js("ScormStudioXBlock")

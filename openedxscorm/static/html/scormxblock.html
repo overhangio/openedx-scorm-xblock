@@ -30,19 +30,5 @@
             height="{% if scorm_xblock.height %}{{ scorm_xblock.height }}{% else %}450{% endif %}">
         </iframe>
     </div>
-    {% elif message %}
-    <p>{{ message }}</p>
-    {% endif %}
-    {% if can_view_student_reports %}
-    <div class="scorm-reports">
-        <button class="view-reports reports-togglable">
-            {% trans "View SCORM reports" %}
-        </button>
-        <span class="reports-togglable reports-togglable-off">
-            <input type="text" placeholder="Student username or email" class="search-students">
-            <button class="reload-report reports-togglable-off" alt="reload report">🗘</button>
-            <div class="report"></div>
-        </span>
-    </div>
     {% endif %}
 </div>
