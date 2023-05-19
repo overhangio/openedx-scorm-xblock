@@ -5,6 +5,8 @@ import logging
 import re
 import xml.etree.ElementTree as ET
 import zipfile
+import requests
+import mimetypes
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -202,6 +204,35 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         )
         return frag
 
+    @XBlock.handler
+    def scorm_view(self, request, _suffix):
+        """
+        View for serving SCORM content. It receives a request with the path to the SCORM content to serve, generates a pre-signed
+        URL to access the content in the AWS S3 bucket, retrieves the file content and returns it with the appropriate content
+        type.
+
+        Parameters:
+        ----------
+        request : django.http.request.HttpRequest
+            HTTP request object containing the path to the SCORM content to serve.
+        _suffix : str
+            Unused parameter.
+
+        Returns:
+        -------
+        Response object containing the content of the requested file with the appropriate content type.
+        """
+        path = request.url.split('scorm_view/')[-1]
+        path = re.sub(r"(\?.*|:[\d:]*$)", "", path)
+        file_name = os.path.basename(path)
+        signed_url = self.storage.url(os.path.join(self.extract_folder_path, path))
+        file_content = requests.get(signed_url).content
+        file_type, _ = mimetypes.guess_type(file_name)
+
+        return Response(
+            file_content, content_type=file_type
+        )
+
     def studio_view(self, context=None):
         # Note that we cannot use xblockutils's StudioEditableXBlockMixin because we
         # need to support package file uploads.
@@ -331,15 +362,28 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def index_page_url(self):
         if not self.package_meta or not self.index_page_path:
             return ""
-        folder = self.extract_folder_path
-        if self.storage.exists(
-            os.path.join(self.extract_folder_base_path, self.index_page_path)
-        ):
-            # For backward-compatibility, we must handle the case when the xblock data
-            # is stored in the base folder.
-            folder = self.extract_folder_base_path
-            logger.warning("Serving SCORM content from old-style path: %s", folder)
-        return self.storage.url(os.path.join(folder, self.index_page_path))
+
+        querystring_auth_setting = self.xblock_settings.get('SCORM_S3_QUERY_AUTH')
+        if querystring_auth_setting is False:
+            folder = self.extract_folder_path
+            if self.storage.exists(
+                os.path.join(self.extract_folder_base_path, self.index_page_path)
+            ):
+                # For backward-compatibility, we must handle the case when the xblock data
+                # is stored in the base folder.
+                folder = self.extract_folder_base_path
+                logger.warning("Serving SCORM content from old-style path: %s", folder)
+            return self.storage.url(os.path.join(folder, self.index_page_path))
+        else:
+            url = self.runtime.handler_url(self, 'scorm_view')
+            if url.endswith('?'):
+                url = url.split('?')[0] + self.index_page_path
+            elif not url.endswith('/'):
+                url = url + '/' + self.index_page_path
+            else:
+                url = self.runtime.handler_url(self, 'scorm_view') + self.index_page_path
+
+        return url
 
     @property
     def extract_folder_path(self):
