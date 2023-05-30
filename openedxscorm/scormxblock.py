@@ -14,6 +14,7 @@ from django.db.models import Q
 from django.template import Context, Template
 from django.utils import timezone
 from django.utils.module_loading import import_string
+from urllib.parse import urlparse
 from webob import Response
 import pkg_resources
 from six import string_types
@@ -205,29 +206,27 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         return frag
 
     @XBlock.handler
-    def scorm_view(self, request, _suffix):
+    def assets_proxy(self, request, _suffix):
         """
-        View for serving SCORM content. It receives a request with the path to the SCORM content to serve, generates a pre-signed
-        URL to access the content in the AWS S3 bucket, retrieves the file content and returns it with the appropriate content
-        type.
+        Proxy view for serving assets. It receives a request with the path to the asset to serve, generates a pre-signed
+        URL to access the content in the AWS S3 bucket, and returns a redirect response to the pre-signed URL.
 
         Parameters:
         ----------
         request : django.http.request.HttpRequest
-            HTTP request object containing the path to the SCORM content to serve.
+            HTTP request object containing the path to the asset to serve.
         _suffix : str
-            Unused parameter.
+            The part of the URL after 'assets_proxy/', i.e., the path to the asset to serve.
 
         Returns:
         -------
         Response object containing the content of the requested file with the appropriate content type.
         """
-        path = request.url.split('scorm_view/')[-1]
-        path = re.sub(r"(\?.*|:[\d:]*$)", "", path)
+        path = urlparse(_suffix).path
         file_name = os.path.basename(path)
-        signed_url = self.storage.url(os.path.join(self.extract_folder_path, path))
-        file_content = requests.get(signed_url).content
+        signed_url = self.storage.url(path)
         file_type, _ = mimetypes.guess_type(file_name)
+        file_content = requests.get(signed_url).content
 
         return Response(
             file_content, content_type=file_type
@@ -362,28 +361,16 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def index_page_url(self):
         if not self.package_meta or not self.index_page_path:
             return ""
+        folder = self.extract_folder_path
+        if self.storage.exists(
+            os.path.join(self.extract_folder_base_path, self.index_page_path)
+        ):
+            # For backward-compatibility, we must handle the case when the xblock data
+            # is stored in the base folder.
+            folder = self.extract_folder_base_path
+            logger.warning("Serving SCORM content from old-style path: %s", folder)
 
-        querystring_auth_setting = self.xblock_settings.get('SCORM_S3_QUERY_AUTH')
-        if querystring_auth_setting is False:
-            folder = self.extract_folder_path
-            if self.storage.exists(
-                os.path.join(self.extract_folder_base_path, self.index_page_path)
-            ):
-                # For backward-compatibility, we must handle the case when the xblock data
-                # is stored in the base folder.
-                folder = self.extract_folder_base_path
-                logger.warning("Serving SCORM content from old-style path: %s", folder)
-            return self.storage.url(os.path.join(folder, self.index_page_path))
-        else:
-            url = self.runtime.handler_url(self, 'scorm_view')
-            if url.endswith('?'):
-                url = url.split('?')[0] + self.index_page_path
-            elif not url.endswith('/'):
-                url = url + '/' + self.index_page_path
-            else:
-                url = self.runtime.handler_url(self, 'scorm_view') + self.index_page_path
-
-        return url
+        return self.storage.url(os.path.join(folder, self.index_page_path))
 
     @property
     def extract_folder_path(self):

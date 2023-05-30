@@ -82,11 +82,27 @@ By default, static assets are stored in the default Django storage backend. To o
         "STORAGE_FUNC": scorm_storage,
     }
 
-This should be added both to the LMS and the CMS settings. Instead of a function, a string that points to an importable module may be passed::
+Configuration for SCORM XBlock for AWS S3 storage
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+In order to configure the SCORM XBlock for AWS S3 storage use case, you'll need to modify the `XBLOCK_SETTINGS` in both the `lms/envs/private.py` and `cms/envs/private.py` files.
+
+Add the following lines to these files::
+
+    # XBlock settings for ScormXBlock
     XBLOCK_SETTINGS["ScormXBlock"] = {
-        "STORAGE_FUNC": "my.custom.storage.module.get_scorm_storage_function",
+        "STORAGE_FUNC": "openedxscorm.storage.s3",
+        "SCORM_S3_BUCKET_NAME": "<your-bucket-name>",
+        "SCORM_S3_QUERY_AUTH": False
     }
+
+This configuration is specifically for when using an S3 bucket to store SCORM assets.
+
+The STORAGE_FUNC is set to the s3 storage module in the SCORM XBlock.
+SCORM_S3_BUCKET_NAME should be replaced with your specific S3 bucket name. If you do not set SCORM_S3_BUCKET_NAME, you should have a bucket named ScormS3Bucket which you have to newly-created in your AWS account.
+SCORM_S3_QUERY_AUTH is a boolean flag that indicates whether or not to use query string authentication for your S3 URLs. If your bucket is public, you should set this value to False. If it is private, no need to set it.
+SCORM_S3_EXPIRES_IN sets the time duration (in seconds) for the presigned URLs to stay valid. The default value here is 604800 which corresponds to one week. If this is not set, the default value will be used.
+Once you've made these changes, save both files and restart your LMS and Studio instances for the changes to take effect.
 
 Development
 -----------
