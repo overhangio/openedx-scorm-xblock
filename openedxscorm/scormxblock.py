@@ -15,6 +15,7 @@ from django.template import Context, Template
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from urllib.parse import urlparse
+import urllib.request
 from webob import Response
 import pkg_resources
 from six import string_types
@@ -226,7 +227,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         file_name = os.path.basename(path)
         signed_url = self.storage.url(path)
         file_type, _ = mimetypes.guess_type(file_name)
-        file_content = requests.get(signed_url).content
+        with urllib.request.urlopen(signed_url) as response:
+            file_content = response.read()
 
         return Response(
             file_content, content_type=file_type
