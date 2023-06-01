@@ -170,7 +170,7 @@ function ScormXBlock(runtime, element, settings) {
     ];
     var getValueUrl = runtime.handlerUrl(element, 'scorm_get_value');
     var GetValue = function (cmi_element) {
-        if (cmi_element in uncachedValues) {
+        if (uncachedValues.includes(cmi_element)) {
             var response = $.ajax({
                 type: "POST",
                 url: getValueUrl,
@@ -213,7 +213,7 @@ function ScormXBlock(runtime, element, settings) {
             params = setValueEvents.shift();
             cmi_element = params[0];
             value = params[1];
-            if (!cmi_element in uncachedValues) {
+            if (!uncachedValues.includes(cmi_element)) {
                 // Update the local scorm data copy to fetch results faster with get_value
                 settings.scorm_data[cmi_element] = value;
             }
