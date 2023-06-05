@@ -229,9 +229,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         with urllib.request.urlopen(signed_url) as response:
             file_content = response.read()
 
-        return Response(
-            file_content, content_type=file_type
-        )
+        return Response(file_content, content_type=file_type)
 
     def studio_view(self, context=None):
         # Note that we cannot use xblockutils's StudioEditableXBlockMixin because we

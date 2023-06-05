@@ -12,31 +12,42 @@ class S3ScormStorage(S3Boto3Storage):
     """
     S3 backend for scorm metadata export
     """
+
     def __init__(self, xblock, bucket, querystring_auth, querystring_expire):
         self.xblock = xblock
+        # No need to serve assets from a custom domain.
         self.custom_domain = None
-        super().__init__(bucket=bucket, querystring_auth=querystring_auth,
-                         querystring_expire=querystring_expire)
+        super().__init__(
+            bucket=bucket,
+            querystring_auth=querystring_auth,
+            querystring_expire=querystring_expire,
+        )
 
     def url(self, name, parameters=None, expire=None):
         """
         Override url method of S3Boto3Storage
         """
-        # No need to use assets proxy when authentication is disabled
         if not self.querystring_auth:
-            return super().url(name, parameters, expire)
+            # No need to use assets proxy when authentication is disabled
+            return super().url(name, parameters=parameters, expire=expire)
 
         if name.startswith(self.xblock.extract_folder_path):
-            handler_url = self.xblock.runtime.handler_url(self.xblock, 'assets_proxy')
-
-            # remove trailing '?' if it's present
-            handler_url = self.xblock.runtime.handler_url(self.xblock, 'assets_proxy').rstrip("?/")
-
-            # construct the URL for proxy function
-            return f"{handler_url}/{self.xblock.index_page_path}"
+            # Proxy assets serving through the `assets_proxy` view. This case should
+            # only ever happen when we attempt to serve the index page from the
+            # index_page_url method.
+            proxy_base_url = self.xblock.runtime.handler_url(
+                self.xblock, "assets_proxy"
+            ).rstrip("?/")
+            # Note that we serve the index page here.
+            return f"{proxy_base_url}/{self.xblock.index_page_path}"
 
         # This branch is executed when the `url` method is called from `assets_proxy`
-        return super().url(os.path.join(self.xblock.extract_folder_path, name), parameters, expire)
+        return super().url(
+            os.path.join(self.xblock.extract_folder_path, name),
+            parameters=parameters,
+            expire=expire,
+        )
+
 
 def s3(xblock):
     """
@@ -53,10 +64,14 @@ def s3(xblock):
     Returns:
         S3ScormStorage: An instance of the S3ScormStorage class.
     """
-    bucket = xblock.xblock_settings.get('S3_BUCKET_NAME', settings.AWS_STORAGE_BUCKET_NAME)
-    querystring_auth = xblock.xblock_settings.get('S3_QUERY_AUTH', True)
-    querystring_expire = xblock.xblock_settings.get('S3_EXPIRES_IN', 604800)
-    storage_class = get_storage_class('openedxscorm.storage.S3ScormStorage')
-    return storage_class(xblock=xblock, bucket=bucket,
-                         querystring_auth=querystring_auth,
-                         querystring_expire=querystring_expire)
+    bucket = xblock.xblock_settings.get(
+        "S3_BUCKET_NAME", settings.AWS_STORAGE_BUCKET_NAME
+    )
+    querystring_auth = xblock.xblock_settings.get("S3_QUERY_AUTH", True)
+    querystring_expire = xblock.xblock_settings.get("S3_EXPIRES_IN", 604800)
+    return S3ScormStorage(
+        xblock=xblock,
+        bucket=bucket,
+        querystring_auth=querystring_auth,
+        querystring_expire=querystring_expire,
+    )

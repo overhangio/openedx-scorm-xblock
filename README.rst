@@ -82,25 +82,43 @@ By default, static assets are stored in the default Django storage backend. To o
         "STORAGE_FUNC": scorm_storage,
     }
 
-Configuration for SCORM XBlock for AWS S3 storage
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This should be added both to the LMS and the CMS settings. Instead of a function, a string that points to an importable module may be passed::
 
-In order to configure the SCORM XBlock for AWS S3 storage use case, you'll need to modify the ``XBLOCK_SETTINGS`` in both the `lms/envs/private.py` and `cms/envs/private.py` files.
+    XBLOCK_SETTINGS["ScormXBlock"] = {
+        "STORAGE_FUNC": "my.custom.storage.module.get_scorm_storage_function",
+    }
 
-Add the following lines to these files::
+Note that the SCORM XBlock comes with S3 storage support out of the box. See the following section:
 
-    # XBlock settings for ScormXBlock
+S3 storage
+~~~~~~~~~~
+
+The SCORM XBlock may be configured to proxy static SCORM assets stored in either public or private S3 buckets. To configure S3 storage, add the following to your LMS and CMS settings::
+
     XBLOCK_SETTINGS["ScormXBlock"] = {
         "STORAGE_FUNC": "openedxscorm.storage.s3"
     }
 
-This configuration is specifically for when using an S3 bucket to store SCORM assets.
+You may define the following additional settings in ``XBLOCK_SETTINGS["ScormXBlock"]``:
 
-* ``STORAGE_FUNC`` should be set to "openedxscorm.storage.s3"
-* ``S3_BUCKET_NAME`` should be replaced with your specific S3 bucket name. If you do not set ``S3_BUCKET_NAME``, the default bucket used will be ``AWS_STORAGE_BUCKET_NAME`` from your project's settings.
-* ``S3_QUERY_AUTH`` is a boolean flag that indicates whether or not to use query string authentication for your S3 URLs. If your bucket is public, you should set this value to False. If it is private, no need to set it.
-* ``S3_EXPIRES_IN`` sets the time duration (in seconds) for the presigned URLs to stay valid. The default value here is 604800 which corresponds to one week. If this is not set, the default value will be used.
-Once you've made these changes, save both files and restart your LMS and Studio instances for the changes to take effect.
+* ``S3_BUCKET_NAME`` (default: ``AWS_STORAGE_BUCKET_NAME``): to store SCORM assets in a specific bucket.
+* ``S3_QUERY_AUTH`` (default: ``True``): boolean flag (``True`` or ``False``) for query string authentication in S3 urls. If your bucket is public, set this value to ``False``. But be aware that in such case your SCORM assets will be publicly available to everyone.
+* ``S3_EXPIRES_IN`` (default: 604800): time duration (in seconds) for the presigned URLs to stay valid. The default is one week.
+
+These settings may be added to Tutor by creating a `plugin <https://docs.tutor.overhang.io/plugins/>`__::
+
+    from tutor import hooks
+
+    hooks.Filters.ENV_PATCHES.add_item(
+        (
+            "openedx-common-settings",
+            """
+    XBLOCK_SETTINGS["ScormXBlock"] = {
+        "STORAGE_FUNC": "openedxscorm.storage.s3",
+        "S3_BUCKET_NAME": "mybucket",
+        ...
+    }"""
+    )
 
 Development
 -----------
