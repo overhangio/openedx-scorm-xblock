@@ -207,7 +207,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         return frag
 
     @XBlock.handler
-    def assets_proxy(self, request, _suffix):
+    def assets_proxy(self, request, suffix):
         """
         Proxy view for serving assets. It receives a request with the path to the asset to serve, generates a pre-signed
         URL to access the content in the AWS S3 bucket, and returns a redirect response to the pre-signed URL.
@@ -216,16 +216,15 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         ----------
         request : django.http.request.HttpRequest
             HTTP request object containing the path to the asset to serve.
-        _suffix : str
+        suffix : str
             The part of the URL after 'assets_proxy/', i.e., the path to the asset to serve.
 
         Returns:
         -------
         Response object containing the content of the requested file with the appropriate content type.
         """
-        path = urlparse(_suffix).path
-        file_name = os.path.basename(path)
-        signed_url = self.storage.url(path)
+        file_name = os.path.basename(suffix)
+        signed_url = self.storage.url(suffix)
         file_type, _ = mimetypes.guess_type(file_name)
         with urllib.request.urlopen(signed_url) as response:
             file_content = response.read()

@@ -14,6 +14,7 @@ class S3ScormStorage(S3Boto3Storage):
     """
     def __init__(self, xblock, bucket, querystring_auth, querystring_expire):
         self.xblock = xblock
+        self.custom_domain = None
         super().__init__(bucket=bucket, querystring_auth=querystring_auth,
                          querystring_expire=querystring_expire)
 
@@ -23,7 +24,7 @@ class S3ScormStorage(S3Boto3Storage):
         """
         # No need to use assets proxy when authentication is disabled
         if not self.querystring_auth:
-            return self.generate_url(name, parameters, expire)
+            return super().url(name, parameters, expire)
 
         if name.startswith(self.xblock.extract_folder_path):
             handler_url = self.xblock.runtime.handler_url(self.xblock, 'assets_proxy')
@@ -34,26 +35,8 @@ class S3ScormStorage(S3Boto3Storage):
             # construct the URL for proxy function
             return f"{handler_url}/{self.xblock.index_page_path}"
 
-        return self.generate_url(os.path.join(self.xblock.extract_folder_path, name), parameters, expire)
-
-    def generate_url(self, name, parameters, expire):
-        """
-        Generate a URL either with or without querystring authentication
-        """
-        # Preserve the trailing slash after normalizing the path.
-        name = self._normalize_name(self._clean_name(name))
-        if expire is None:
-            expire = self.querystring_expire
-
-        params = parameters.copy() if parameters else {}
-        params['Bucket'] = self.bucket.name
-        params['Key'] = self._encode_name(name)
-        url = self.bucket.meta.client.generate_presigned_url('get_object', Params=params,
-                                                             ExpiresIn=expire)
-        if self.querystring_auth:
-            return url
-        return self._strip_signing_parameters(url)
-
+        # This branch is executed when the `url` method is called from `assets_proxy`
+        return super().url(os.path.join(self.xblock.extract_folder_path, name), parameters, expire)
 
 def s3(xblock):
     """
