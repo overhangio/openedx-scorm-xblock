@@ -5,7 +5,6 @@ import logging
 import re
 import xml.etree.ElementTree as ET
 import zipfile
-import requests
 import mimetypes
 
 from django.core.files.base import ContentFile
