@@ -13,7 +13,6 @@ from django.db.models import Q
 from django.template import Context, Template
 from django.utils import timezone
 from django.utils.module_loading import import_string
-from urllib.parse import urlparse
 import urllib.request
 from webob import Response
 import pkg_resources
