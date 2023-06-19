@@ -93,6 +93,9 @@ function ScormXBlock(runtime, element, settings) {
     // Student reports
     var reportElement = $(element).find(".scorm-reports .report");
     function initReports() {
+        if (reportElement.length === 0){
+            return;
+        }
         $(element).find("button.view-reports").on("click", function () {
             viewReports();
         });
