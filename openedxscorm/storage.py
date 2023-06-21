@@ -4,7 +4,6 @@ Storage backend for scorm metadata export.
 import os
 from django.conf import settings
 
-from django.core.files.storage import get_storage_class
 from storages.backends.s3boto3 import S3Boto3Storage
 
 
@@ -13,12 +12,12 @@ class S3ScormStorage(S3Boto3Storage):
     S3 backend for scorm metadata export
     """
 
-    def __init__(self, xblock, bucket, querystring_auth, querystring_expire):
+    def __init__(self, xblock, bucket_name=None, querystring_auth=None, querystring_expire=None):
         self.xblock = xblock
         # No need to serve assets from a custom domain.
         self.custom_domain = None
         super().__init__(
-            bucket=bucket,
+            bucket_name=bucket_name,
             querystring_auth=querystring_auth,
             querystring_expire=querystring_expire,
         )
@@ -64,14 +63,14 @@ def s3(xblock):
     Returns:
         S3ScormStorage: An instance of the S3ScormStorage class.
     """
-    bucket = xblock.xblock_settings.get(
+    bucket_name = xblock.xblock_settings.get(
         "S3_BUCKET_NAME", settings.AWS_STORAGE_BUCKET_NAME
     )
     querystring_auth = xblock.xblock_settings.get("S3_QUERY_AUTH", True)
     querystring_expire = xblock.xblock_settings.get("S3_EXPIRES_IN", 604800)
     return S3ScormStorage(
         xblock=xblock,
-        bucket=bucket,
+        bucket_name=bucket_name,
         querystring_auth=querystring_auth,
         querystring_expire=querystring_expire,
     )
