@@ -129,7 +129,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     icon_class = String(default="video", scope=Scope.settings)
     width = Integer(
         display_name=_("Display width (px)"),
-        help=_("Width of iframe (default: 100%)"),
+        help=_("Width of iframe (default: 100%%)"),
         scope=Scope.settings,
     )
     height = Integer(
