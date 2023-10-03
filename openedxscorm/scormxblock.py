@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import hashlib
 import os
@@ -336,23 +337,40 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                 raise ScormError(
                     "Could not find 'imsmanifest.xml' file in the scorm package"
                 )
+            else:
+                self.zip_root_path = root_path
+        
+            #TODO: it appears that in django-storages>=1.14 which is being used in Quince release 
+            # it has mutli-threading support via TransferConfig utility of boto3.s3. We should remove
+            # our multi-threading changes for Quince update of this xblock. 
+            max_workers = self.xblock_settings.get("THREADPOOLEXECUTOR_MAX_WORKERS", 10)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                tracker_futures = {
+                    executor.submit(self._extract_and_save, zipinfo, scorm_zipfile): zipinfo
+                    for zipinfo in zipinfos
+                }
+                for future in concurrent.futures.as_completed(tracker_futures):
+                    zipinfo = tracker_futures[future]
+                    try:
+                        future.result()
+                    except Exception as exc:
+                        logger.info(
+                            "Unable to extract and save %r generated an exception: %s" % (zipinfo, exc)
+                        )
 
-            for zipinfo in zipinfos:
-                # Extract only files that are below the root
-                if zipinfo.filename.startswith(root_path):
-                    # Do not unzip folders, only files. In Python 3.6 we will have access to
-                    # the is_dir() method to verify whether a ZipInfo object points to a
-                    # directory.
-                    # https://docs.python.org/3.6/library/zipfile.html#zipfile.ZipInfo.is_dir
-                    if not zipinfo.filename.endswith("/"):
-                        dest_path = os.path.join(
-                            self.extract_folder_path,
-                            os.path.relpath(zipinfo.filename, root_path),
-                        )
-                        self.storage.save(
-                            dest_path,
-                            ContentFile(scorm_zipfile.read(zipinfo.filename)),
-                        )
+    def _extract_and_save(self, zipinfo, scorm_zipfile):
+        """ Extract only files that are below the root and save them to destination path """
+        if zipinfo.filename.startswith(self.zip_root_path):
+            # Do not unzip folders, only files
+            if not zipinfo.is_dir():
+                dest_path = os.path.join(
+                    self.extract_folder_path,
+                    os.path.relpath(zipinfo.filename, self.zip_root_path),
+                )
+                self.storage.save(
+                    dest_path,
+                    ContentFile(scorm_zipfile.read(zipinfo.filename)),
+                )
 
     @property
     def index_page_url(self):
