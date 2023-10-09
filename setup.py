@@ -32,8 +32,8 @@ setup(
     long_description_content_type="text/x-rst",
     author="Overhang.IO",
     author_email="contact@overhang.io",
-    maintainer="Overhang.IO",
-    maintainer_email="regis@overhang.io",
+    maintainer="Edly",
+    maintainer_email="zia.fazal@edly.io",
     project_urls={
         "Documentation": "https://github.com/overhangio/openedx-scorm-xblock",
         "Code": "https://github.com/overhangio/openedx-scorm-xblock",
