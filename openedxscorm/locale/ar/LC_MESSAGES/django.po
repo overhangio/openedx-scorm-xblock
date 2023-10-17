@@ -1,0 +1,122 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2023-09-28 10:59+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+#: openedxscorm/scormxblock.py:89
+msgid "Display Name"
+msgstr "اسم العرض"
+
+#: openedxscorm/scormxblock.py:90
+msgid "Display name for this module"
+msgstr "اسم العرض لهذا النموذج"
+
+#: openedxscorm/scormxblock.py:95
+msgid "Path to the index page in scorm file"
+msgstr "مسار صفحة الفهرس في ملف scorm"
+
+#: openedxscorm/scormxblock.py:112
+msgid "Weight"
+msgstr "الحجم"
+
+#: openedxscorm/scormxblock.py:113
+msgid "Weight/Maximum grade"
+msgstr "الحجم/ أعلى درجة"
+
+#: openedxscorm/scormxblock.py:117
+msgid "Scored"
+msgstr "الدرجات المسجلة"
+
+#: openedxscorm/scormxblock.py:119
+msgid ""
+"Select False if this component will not receive a numerical score from the "
+"Scorm"
+msgstr "اختر خطأ إذا لن يتضمن المكون درجة عددية من Scorm "
+
+#: openedxscorm/scormxblock.py:131
+msgid "Display width (px)"
+msgstr "عرض الشاشة (بالبيكسل)"
+
+#: openedxscorm/scormxblock.py:132
+#, python-format
+msgid "Width of iframe (default: 100%%)"
+msgstr "عرض إطار iframe  (الافتراضي 100%%)"
+
+#: openedxscorm/scormxblock.py:136
+msgid "Display height (px)"
+msgstr "ارتفاع الشاشة (بالبيكسل)"
+
+#: openedxscorm/scormxblock.py:137
+msgid "Height of iframe"
+msgstr "ارتفاع إطار iframe "
+
+#: openedxscorm/scormxblock.py:142
+msgid "Launch in pop-up window"
+msgstr "التشغيل في نافذة منبثقة"
+
+#: openedxscorm/scormxblock.py:144
+msgid ""
+"Launch in pop-up window instead of embedding the SCORM content in an iframe. "
+"Enable this for older packages that need to be run in separate window."
+msgstr ""
+"التشغيل في نافذة منبثقة بدلًا من تضمين محتوى SCORM  في إطار iframe. "
+"قم بتضمين ذلك في الحزم القديمة التي تحتاج إلى تشغيلها في نافذة منفصلة"
+
+#: openedxscorm/static/html/scormxblock.html:8
+msgid "points"
+msgstr "النقاط"
+
+#: openedxscorm/static/html/scormxblock.html:16
+msgid "Fullscreen"
+msgstr "ملء الشاشة"
+
+#: openedxscorm/static/html/scormxblock.html:19
+msgid "Exit fullscreen"
+msgstr " الخروج من وضع ملء الشاشة"
+
+#: openedxscorm/static/html/scormxblock.html:24
+msgid "Launch unit in new window"
+msgstr "تشغيل الوحدة في نافذة جديدة"
+
+#: openedxscorm/static/html/scormxblock.html:39
+msgid "View SCORM reports"
+msgstr "عرض تقارير SCORM"
+
+#: openedxscorm/static/html/studio.html:16
+msgid "Upload .zip package"
+msgstr "تم رفع حزمة zip"
+
+#: openedxscorm/static/html/studio.html:20
+msgid "Currently:"
+msgstr "حاليًا:"
+
+#: openedxscorm/static/html/studio.html:28
+msgid "True"
+msgstr "صحيح"
+
+#: openedxscorm/static/html/studio.html:29
+msgid "False"
+msgstr "خطأ"
+
+#: openedxscorm/static/html/studio.html:63
+msgid "Save"
+msgstr "حفظ"
+
+#: openedxscorm/static/html/studio.html:66
+msgid "Cancel"
+msgstr "إلغاء"
