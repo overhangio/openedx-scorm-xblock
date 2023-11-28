@@ -22,7 +22,6 @@ Features
 * Optional display in pop-up window
 * Integrated grading, compatible with rescoring
 * Compatibility with `Django storages <https://django-storages.readthedocs.io/>`__, customizable storage backend
-* v16 works with Palm, the latest Open edX release (use v15 for Olive, v14 for Nutmeg, v13 for Maple, and v12 for Lilac)
 
 Installation
 ------------
