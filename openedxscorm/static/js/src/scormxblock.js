@@ -162,11 +162,14 @@ function ScormXBlock(runtime, element, settings) {
         });
     }
 
+    // Flag to verify if navigation menu was used to change page
+    var navigationClick = false;
         $(element).on("click",".navigation-title", function () {
             var path = $(this).attr('href');
             $(element).find('.scorm-embedded').attr('src', path);
+            navigationClick = true;
          });
-
+        
     // We only make calls to the get_value handler when absolutely required.
     // These calls are synchronous and they can easily clog the scorm display.
     var uncachedValues = [
@@ -178,20 +181,27 @@ function ScormXBlock(runtime, element, settings) {
     ];
     var getValueUrl = runtime.handlerUrl(element, 'scorm_get_value');
     var GetValue = function (cmi_element) {
-        if (uncachedValues.includes(cmi_element)) {
+        // Only make a call if navigation menu was not used
+        // Otherwise the synchronous calls are blocked by chromium on page unload
+        if (uncachedValues.includes(cmi_element) && !navigationClick) {
             var response = $.ajax({
                 type: "POST",
                 url: getValueUrl,
                 data: JSON.stringify({
                     'name': cmi_element
                 }),
-                async: false
+                async: false,
+
             });
-            response = JSON.parse(response.responseText);
+            // Set to false to allow for other calls by the SCORM api
+            navigationClick = false;
+            response = JSON.parse(response.responseText)
             return response.value;
         } else if (cmi_element in settings.scorm_data) {
+            navigationClick = false;
             return settings.scorm_data[cmi_element];
         }
+        navigationClick = false;
         return "";
     };
 
