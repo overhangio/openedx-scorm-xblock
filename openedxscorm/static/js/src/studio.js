@@ -7,17 +7,21 @@ function ScormStudioXBlock(runtime, element) {
         var file_data = $(element).find('#scorm_file').prop('files')[0];
         var display_name = $(element).find('input[name=display_name]').val();
         var has_score = $(element).find('select[name=has_score]').val();
+        var enable_navigation_menu = $(element).find('select[name=enable_navigation_menu]').val();
         var weight = $(element).find('input[name=weight]').val();
         var width = $(element).find('input[name=width]').val();
         var height = $(element).find('input[name=height]').val();
+        var navigation_menu_width = $(element).find('input[name=navigation_menu_width]').val();
         var popup_on_launch = $(element).find('select[name=popup_on_launch]').val();
 
         form_data.append('file', file_data);
         form_data.append('display_name', display_name);
         form_data.append('has_score', has_score);
+        form_data.append('enable_navigation_menu', enable_navigation_menu);
         form_data.append('weight', weight);
         form_data.append('width', width);
         form_data.append('height', height);
+        form_data.append('navigation_menu_width', navigation_menu_width);
         form_data.append('popup_on_launch', popup_on_launch);
         runtime.notify('save', {
             state: 'start'

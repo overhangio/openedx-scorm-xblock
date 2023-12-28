@@ -162,6 +162,11 @@ function ScormXBlock(runtime, element, settings) {
         });
     }
 
+        $(element).on("click",".navigation-title", function () {
+            var path = $(this).attr('href');
+            $(element).find('.scorm-embedded').attr('src', path);
+         });
+
     // We only make calls to the get_value handler when absolutely required.
     // These calls are synchronous and they can easily clog the scorm display.
     var uncachedValues = [
