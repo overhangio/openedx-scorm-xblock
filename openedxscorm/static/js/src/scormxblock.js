@@ -184,19 +184,20 @@ function ScormXBlock(runtime, element, settings) {
         // Only make a call if navigation menu was not used
         // Otherwise the synchronous calls are blocked by chromium on page unload
         if (uncachedValues.includes(cmi_element) && !navigationClick) {
-            var response = $.ajax({
+            $.ajax({
                 type: "POST",
                 url: getValueUrl,
                 data: JSON.stringify({
                     'name': cmi_element
                 }),
                 async: false,
+                success: function (response) {
+                    // Set to false to allow for other calls by the SCORM api
+                    navigationClick = false;
+                    return response.value;
+                }
 
             });
-            // Set to false to allow for other calls by the SCORM api
-            navigationClick = false;
-            response = JSON.parse(response.responseText)
-            return response.value;
         } else if (cmi_element in settings.scorm_data) {
             navigationClick = false;
             return settings.scorm_data[cmi_element];
