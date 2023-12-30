@@ -421,6 +421,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         completion_status = None
         lesson_score = None
 
+        is_completed = self.lesson_status == "completed"
+
         self.scorm_data[name] = value
         if name == "cmi.core.lesson_status":
             lesson_status = data.get("value")
@@ -450,7 +452,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             self.success_status = success_status
         if completion_status == "completed":
             self.emit_completion(1)
-        if success_status or completion_status == "completed":
+        if success_status or completion_status == "completed" or (is_completed and lesson_score):
             if self.has_score:
                 self.publish_grade()
 
