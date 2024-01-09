@@ -16,7 +16,7 @@
 
 .scorm-xblock .scorm-content .scorm-panel {
     display: flex;
-    direction: row;
+    flex-direction: row;
 }
 
 .scorm-xblock .scorm-content .scorm-panel .scorm-pane {
@@ -34,7 +34,6 @@
 
 /* Fullscreen */
 .scorm-xblock.fullscreen-enabled .scorm-embedded {
-    position: fixed;
     border: none;
     overflow: hidden;
     top: 55px;
@@ -46,23 +45,21 @@
     z-index: 10000;
 }
 
+.scorm-xblock.fullscreen-enabled.navigation-enabled .scorm-content .scorm-panel .scorm-pane {
+    width: 100%;
+}
+
 .scorm-xblock.fullscreen-enabled.navigation-enabled .navigation_pane {
-    position: fixed;
     border: none;
     overflow: hidden;
     top: 55px;
     right: 0;
     bottom: 0;
     left: 0;
-    width: 30%;
     height: calc(100% - 65px);
     z-index: 10000;
 }
 
-.scorm-xblock.fullscreen-enabled.navigation-enabled .scorm-embedded {
-    left: 30%;
-    width: 70%;
-}
 
 .scorm-xblock.fullscreen-enabled .scorm-content {
     position: fixed;

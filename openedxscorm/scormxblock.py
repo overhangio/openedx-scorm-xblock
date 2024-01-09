@@ -153,7 +153,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         help=_(
             "Select True to display a navigation menu on the left side to display table of contents"
         ),
-        default=True,
+        default=False,
         scope=Scope.settings,
     )
 

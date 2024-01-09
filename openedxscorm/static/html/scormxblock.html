@@ -26,7 +26,7 @@
                     </ul>
                 </div>
                 {% endif %}
-                <div class="scorm-pane">
+                <div class="scorm-pane"  style="width: {% if scorm_xblock.width %}{{ scorm_xblock.width }}px{% else %}100%{% endif %}; height: {% if scorm_xblock.height %}{{ scorm_xblock.height }}px{% else %}450{% endif %};">
             <div class="popup-wrapper">
                 <button class="popup-launcher">
                     {% trans "Launch unit in new window" %}
@@ -36,8 +36,8 @@
             <iframe
             class="scorm-embedded"
             src="{{ index_page_url }}"
-            width="{% if scorm_xblock.width %}{{ scorm_xblock.width }}{% else %}100%{% endif %}"
-            height="{% if scorm_xblock.height %}{{ scorm_xblock.height }}{% else %}450{% endif %}"
+            width="100%"
+            height="100%"
             >
         </iframe>
     </div>
