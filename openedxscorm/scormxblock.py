@@ -129,7 +129,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     icon_class = String(default="video", scope=Scope.settings)
     width = Integer(
         display_name=_("Display width (px)"),
-        help=_("Width of iframe (default: 100%%)"),
+        help=_("Width of iframe (default: 100%)"),
         scope=Scope.settings,
     )
     height = Integer(
@@ -148,7 +148,23 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         default=False,
         scope=Scope.settings,
     )
+    enable_navigation_menu = Boolean(
+        display_name=_("Display navigation menu"),
+        help=_(
+            "Select True to display a navigation menu on the left side to display table of contents"
+        ),
+        default=False,
+        scope=Scope.settings,
+    )
 
+    navigation_menu = String(scope=Scope.settings, default="")
+    
+    navigation_menu_width = Integer(
+        display_name=_("Display width of navigation menu(px)"),
+        help=_("Width of navigation menu. This assumes that Navigation Menu is enabled. (default: 30%)"),
+        scope=Scope.settings,
+    )
+    
     has_author_view = True
 
     def render_template(self, template_path, context):
@@ -184,6 +200,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             "grade": self.get_grade(),
             "can_view_student_reports": self.can_view_student_reports,
             "scorm_xblock": self,
+            "navigation_menu": self.navigation_menu,
         }
         student_context.update(context or {})
         template = self.render_template("static/html/scormxblock.html", student_context)
@@ -239,6 +256,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             "field_width": self.fields["width"],
             "field_height": self.fields["height"],
             "field_popup_on_launch": self.fields["popup_on_launch"],
+            "field_enable_navigation_menu": self.fields["enable_navigation_menu"],
+            "field_navigation_menu_width": self.fields["navigation_menu_width"],
             "scorm_xblock": self,
         }
         studio_context.update(context or {})
@@ -261,6 +280,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         self.width = parse_int(request.params["width"], None)
         self.height = parse_int(request.params["height"], None)
         self.has_score = request.params["has_score"] == "1"
+        self.enable_navigation_menu = request.params["enable_navigation_menu"] == "1"
+        self.navigation_menu_width = parse_int(request.params["navigation_menu_width"], None)
         self.weight = parse_float(request.params["weight"], 1)
         self.popup_on_launch = request.params["popup_on_launch"] == "1"
         self.icon_class = "problem" if self.has_score else "video"
@@ -517,6 +538,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         schemaversion = root.find(
             "{prefix}metadata/{prefix}schemaversion".format(prefix=prefix)
         )
+        
+        self.extract_navigation_titles(root, prefix)
 
         if resource is not None:
             self.index_page_path = resource.get("href")
@@ -528,6 +551,99 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             self.scorm_version = "SCORM_2004"
         else:
             self.scorm_version = "SCORM_12"
+
+    def extract_navigation_titles(self, root, prefix):
+        """Extracts all the titles of items to build a navigation menu from the imsmanifest.xml file
+
+        Args:
+            root (XMLTag): root of the imsmanifest.xml file
+            prefix (string): namespace to match with in the xml file
+        """
+        organizations = root.findall('{prefix}organizations/{prefix}organization'.format(prefix=prefix))
+        navigation_menu_titles = []
+        # Get data for all organizations
+        for organization in organizations:
+            navigation_menu_titles.append(self.find_titles_recursively(organization, prefix, root))
+        self.navigation_menu = self.recursive_unorderedlist(navigation_menu_titles)
+        
+    def sanitize_input(self, input_str):
+        """Removes script tags from string"""
+        sanitized_str = re.sub(r'<script\b[^>]*>(.*?)</script>', '', input_str, flags=re.IGNORECASE)
+        return sanitized_str
+        
+
+    def find_titles_recursively(self, item, prefix, root):
+        """Recursively iterate through the organization tags and extract the title and resources
+
+        Args:
+            item (XMLTag): The current node to iterate on
+            prefix (string): namespace to match with in the xml file
+            root (XMLTag): root of the imsmanifest.xml file
+
+        Returns:
+            List: Nested list of all the title tags and their resources
+        """
+        children = item.findall('{prefix}item'.format(prefix=prefix))
+        item_title = item.find('{prefix}title'.format(prefix=prefix)).text
+        # Sanitizing every title tag to protect against XSS attacks
+        sanitized_title = self.sanitize_input(item_title)
+        item_identifier = item.get("identifierref")
+        # If item does not have a resource, we don't need to make it into a link
+        if not item_identifier:
+            resource_link = "#"
+        else:
+            resource = root.find("{prefix}resources/{prefix}resource[@identifier='{identifier}']".format(prefix=prefix, identifier=item_identifier))
+            # Attach the storage path with the file path
+            resource_link = self.storage.url(os.path.join(self.extract_folder_path, resource.get("href")))
+        if not children:
+            return [(sanitized_title, resource_link)]
+        child_titles = []
+        for child in children:
+            if 'isvisible' in child.attrib and child.attrib['isvisible'] == "true":
+                child_titles.extend(self.find_titles_recursively(child, prefix, root))
+        return [(sanitized_title, resource_link), child_titles]
+    
+    def recursive_unorderedlist(self, value):
+        """Create an HTML unordered list recursively to display navigation menu
+
+        Args:
+            value (list): The nested list to create the unordered list
+        """
+
+        def has_children(item):
+            return len(item) == 2 and (type(item[0]) is tuple and type(item[1]) is list)
+
+        def format(items, tabs=1):
+            """Iterate through the nested list and return a formatted unordered list"""
+            indent = "\t" * tabs
+            # If leaf node, return the li tag
+            if type(items) is tuple:
+                title, resource_url = items[0], items[1]
+                if resource_url != "#":
+                    return "{indent}<li href='{resource_url}' class='navigation-title'>{title}</li>".format(indent=indent, resource_url=resource_url, title=title)
+                return "{indent}<li class='navigation-title-header'>{title}</li>".format(indent=indent, title=title)
+            
+            output = []
+            # If parent node, create another nested unordered list and return
+            if has_children(items):
+                parent, children = items[0], items[1]
+                title, resource_url = parent[0], parent[1]
+                for child in children:
+                    output.append(format(child, tabs+1))
+                if resource_url != "#":
+                    return "\n{indent}<ul>\n{indent}<li href='{resource_url}' class='navigation-title'>{title}</li>\n{indent}<ul>\n{indent}\n{output}</ul>\n{indent}</ul>".format(indent=indent, resource_url=resource_url, title=title, output="\n".join(output))
+                return "\n{indent}<ul>\n{indent}<li class='navigation-title-header'>{title}</li>\n{indent}<ul>\n{indent}\n{output}</ul>\n{indent}</ul>".format(indent=indent, resource_url=resource_url, title=title, output="\n".join(output))
+            else:
+                for item in items:
+                    output.append(format(item, tabs+1))
+                return "{indent}\n{indent}<ul>\n{output}\n{indent}</ul>".format(indent=indent, output="\n".join(output))
+        
+        unordered_lists = []
+        # Append navigation menus for all organizations in course
+        for organization in value:
+            unordered_lists.append(format(organization))
+        
+        return "\n".join(unordered_lists)
 
     def find_relative_file_path(self, filename):
         return os.path.relpath(self.find_file_path(filename), self.extract_folder_path)

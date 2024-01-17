@@ -1,48 +1,64 @@
 {% load i18n %}
 
-<div class="scorm-xblock">
-    {% if index_page_url %}
+<div class="scorm-xblock {% if scorm_xblock.enable_navigation_menu %}navigation-enabled{% endif %}">
+  {% if index_page_url %} {% if scorm_xblock.has_score %}
+  <p>
+    (<span class="grade">{{ grade|floatformat }}</span>/{{ scorm_xblock.weight|floatformat }} {% trans "points" %})
+    <span class="completion-status">{% trans completion_status %}</span>
+  </p>
+  {% endif %}
 
-    {% if scorm_xblock.has_score %}
-    <p>
-        (<span class="grade">{{ grade|floatformat }}</span>/{{ scorm_xblock.weight|floatformat }} {% trans "points" %})
-        <span class="completion-status">{% trans completion_status %}</span>
-    </p>
-    {% endif %}
+  <div class="scorm-content">
 
-    <div class="scorm-content">
-        <div class="fullscreen-controls">
-            <button class="enter-fullscreen">
-                {% trans "Fullscreen" %}
-            </button>
-            <button class="exit-fullscreen">
-                {% trans "Exit fullscreen" %}
-            </button>
-        </div>
+            <div class="fullscreen-controls">
+                <button class="enter-fullscreen">{% trans "Fullscreen" %}</button>
+                <button class="exit-fullscreen">{% trans "Exit fullscreen" %}</button>
+            </div>
+            
+            <div class="scorm-panel">
 
-        <div class="popup-wrapper">
-            <button class="popup-launcher">{% trans "Launch unit in new window" %} <span class="icon fa fa-external-link"></span></button>
-        </div>
-        <iframe
+                {% if scorm_xblock.enable_navigation_menu %}
+                <div class="navigation-pane" style="width: {% if scorm_xblock.navigation_menu_width %}{{scorm_xblock.navigation_menu_width}}px{% else %}30%{% endif %};">
+                    <h4>Table of contents</h4>
+
+                    <ul>
+                        {{ navigation_menu|safe }}
+                    </ul>
+                </div>
+                {% endif %}
+                <div class="scorm-pane"  style="width: {% if scorm_xblock.width %}{{ scorm_xblock.width }}px{% else %}100%{% endif %}; height: {% if scorm_xblock.height %}{{ scorm_xblock.height }}px{% else %}450{% endif %};">
+            <div class="popup-wrapper">
+                <button class="popup-launcher">
+                    {% trans "Launch unit in new window" %}
+                    <span class="icon fa fa-external-link"></span>
+                </button>
+            </div>
+            <iframe
             class="scorm-embedded"
             src="{{ index_page_url }}"
-            width="{% if scorm_xblock.width %}{{ scorm_xblock.width }}{% else %}100%{% endif %}"
-            height="{% if scorm_xblock.height %}{{ scorm_xblock.height }}{% else %}450{% endif %}">
+            width="100%"
+            height="100%"
+            >
         </iframe>
     </div>
+</div>
     {% elif message %}
     <p>{{ message }}</p>
-    {% endif %}
-    {% if can_view_student_reports %}
+    {% endif %} {% if can_view_student_reports %}
     <div class="scorm-reports">
-        <button class="view-reports reports-togglable">
-            {% trans "View SCORM reports" %}
-        </button>
-        <span class="reports-togglable reports-togglable-off">
-            <input type="text" placeholder="Student username or email" class="search-students">
-            <button class="reload-report reports-togglable-off" alt="reload report">🗘</button>
-            <div class="report"></div>
-        </span>
+      <button class="view-reports reports-togglable">
+        {% trans "View SCORM reports" %}
+      </button>
+      <span class="reports-togglable reports-togglable-off">
+        <input
+          type="text"
+          placeholder="Student username or email"
+          class="search-students"
+        />
+        <button class="reload-report reports-togglable-off" alt="reload report"></button>
+        <div class="report"></div>
+      </span>
     </div>
     {% endif %}
+  </div>
 </div>

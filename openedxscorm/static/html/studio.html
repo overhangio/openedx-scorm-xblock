@@ -34,6 +34,17 @@
 
         <li class="field comp-setting-entry is-set">
             <div class="wrapper-comp-setting">
+                <label class="label setting-label" for="enable_navigation_menu">{% trans field_enable_navigation_menu.display_name %}</label>
+                <select name="enable_navigation_menu" id="enable_navigation_menu">
+                    <option value="1" {% if scorm_xblock.enable_navigation_menu %}selected{% endif %}>{% trans "True" %}</option>
+                    <option value="0" {% if not scorm_xblock.enable_navigation_menu %}selected{% endif %}>{% trans "False" %}</option>
+                </select>
+            </div>
+            <span class="tip setting-help">{% trans field_enable_navigation_menu.help %}</span>
+        </li>
+
+        <li class="field comp-setting-entry is-set">
+            <div class="wrapper-comp-setting">
                 <label class="label setting-label" for="weight">{% trans field_weight.display_name %}</label>
                 <input class="input setting-input" name="weight" id="weight" value="{{ scorm_xblock.weight|unlocalize }}" type="number" />
             </div>
@@ -54,6 +65,14 @@
                 <input class="input setting-input" name="height" id="height" value="{{ scorm_xblock.height }}" type="number" />
             </div>
             <span class="tip setting-help">{% trans field_height.help %}</span>
+        </li>
+        
+        <li class="field comp-setting-entry is-set">
+            <div class="wrapper-comp-setting">
+                <label class="label setting-label" for="navigation_menu_width">{% trans field_navigation_menu_width.display_name %}</label>
+                <input class="input setting-input" name="navigation_menu_width" id="navigation_menu_width" value="{{ scorm_xblock.navigation_menu_width }}" type="number" />
+            </div>
+            <span class="tip setting-help">{% trans field_navigation_menu_width.help %}</span>
         </li>
     </ul>
 
