@@ -21,6 +21,7 @@ Features
 * Fullscreen display on button pressed
 * Optional display in pop-up window
 * Integrated grading, compatible with rescoring
+* Optional custom width navigation menu interpreted from manifest file
 * Compatibility with `Django storages <https://django-storages.readthedocs.io/>`__, customizable storage backend
 
 Installation
