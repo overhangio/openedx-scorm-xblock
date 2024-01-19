@@ -6,6 +6,7 @@ import re
 import xml.etree.ElementTree as ET
 import zipfile
 import mimetypes
+import urllib
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -13,7 +14,6 @@ from django.db.models import Q
 from django.template import Context, Template
 from django.utils import timezone
 from django.utils.module_loading import import_string
-import urllib.request
 from webob import Response
 import pkg_resources
 from six import string_types
@@ -195,7 +195,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
     def student_view(self, context=None):
         student_context = {
-            "index_page_url": self.index_page_url,
+            "index_page_url": urllib.parse.unquote(self.index_page_url),
             "completion_status": self.lesson_status,
             "grade": self.get_grade(),
             "can_view_student_reports": self.can_view_student_reports,
@@ -240,6 +240,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         """
         file_name = os.path.basename(suffix)
         signed_url = self.storage.url(suffix)
+        if request.query_string:
+            signed_url = '&'.join([signed_url, request.query_string])
         file_type, _ = mimetypes.guess_type(file_name)
         with urllib.request.urlopen(signed_url) as response:
             file_content = response.read()
@@ -544,7 +546,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         schemaversion = root.find(
             "{prefix}metadata/{prefix}schemaversion".format(prefix=prefix)
         )
-        
+
         self.extract_navigation_titles(root, prefix)
 
         if resource is not None:
