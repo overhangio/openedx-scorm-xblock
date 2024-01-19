@@ -602,7 +602,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         else:
             resource = root.find("{prefix}resources/{prefix}resource[@identifier='{identifier}']".format(prefix=prefix, identifier=item_identifier))
             # Attach the storage path with the file path
-            resource_link = self.storage.url(os.path.join(self.extract_folder_path, resource.get("href")))
+            resource_link = urllib.parse.unquote(
+                self.storage.url(os.path.join(self.extract_folder_path, resource.get("href")))
+            )
         if not children:
             return [(sanitized_title, resource_link)]
         child_titles = []
