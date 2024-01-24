@@ -452,7 +452,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
         self.scorm_data[name] = value
         if name == "cmi.core.lesson_status":
-            lesson_status = data.get("value")
+            lesson_status = value
             if lesson_status in ["passed", "failed"]:
                 success_status = lesson_status
             elif lesson_status in ["completed", "incomplete"]:
