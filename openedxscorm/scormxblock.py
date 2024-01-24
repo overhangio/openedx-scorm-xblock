@@ -201,6 +201,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             "can_view_student_reports": self.can_view_student_reports,
             "scorm_xblock": self,
             "navigation_menu": self.navigation_menu,
+            "popup_on_launch": self.popup_on_launch
         }
         student_context.update(context or {})
         template = self.render_template("static/html/scormxblock.html", student_context)
@@ -260,6 +261,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             "field_popup_on_launch": self.fields["popup_on_launch"],
             "field_enable_navigation_menu": self.fields["enable_navigation_menu"],
             "field_navigation_menu_width": self.fields["navigation_menu_width"],
+            "popup_on_launch": self.fields["popup_on_launch"],
             "scorm_xblock": self,
         }
         studio_context.update(context or {})
