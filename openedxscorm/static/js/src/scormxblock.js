@@ -177,27 +177,27 @@ function ScormXBlock(runtime, element, settings) {
         "cmi.completion_status",
         "cmi.success_status",
         "cmi.core.score.raw",
-        "cmi.score.raw"
+        "cmi.score.raw",
+        "cmi.mode",
+        
     ];
     var getValueUrl = runtime.handlerUrl(element, 'scorm_get_value');
     var GetValue = function (cmi_element) {
         // Only make a call if navigation menu was not used
         // Otherwise the synchronous calls are blocked by chromium on page unload
-        if (uncachedValues.includes(cmi_element) && !navigationClick) {
-            $.ajax({
+        if (uncachedValues.includes(cmi_element) && !navigationClick){
+            var response = $.ajax({
                 type: "POST",
                 url: getValueUrl,
                 data: JSON.stringify({
-                    'name': cmi_element
+                    'name': cmi_element,
+                    'url': window.location.href
                 }),
-                async: false,
-                success: function (response) {
-                    // Set to false to allow for other calls by the SCORM api
-                    navigationClick = false;
-                    return response.value;
-                }
-
+                async: false
             });
+            response = JSON.parse(response.responseText);
+            navigationClick = false;
+            return response.value;
         } else if (cmi_element in settings.scorm_data) {
             navigationClick = false;
             return settings.scorm_data[cmi_element];
