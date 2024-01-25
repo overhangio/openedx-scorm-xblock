@@ -420,7 +420,6 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         name = data.get("name")
         if name in ["cmi.core.lesson_mode", "cmi.mode"]:
             mode = self.get_mode(data)
-            print("mode .............................              ",mode)
             return {"value": mode}
         if name in ["cmi.core.lesson_status", "cmi.completion_status"]:
             return {"value": self.lesson_status}
