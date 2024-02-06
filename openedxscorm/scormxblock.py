@@ -321,6 +321,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                 "index_page_url": self.index_page_url,
                 "width": self.width or 800,
                 "height": self.height or 800,
+                "navigation_menu": self.navigation_menu,
+                "navigation_menu_width": self.navigation_menu_width,
+                "enable_navigation_menu": self.enable_navigation_menu
             },
         )
         return Response(body=rendered)

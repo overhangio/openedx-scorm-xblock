@@ -10,12 +10,62 @@
             iframe {
                 border: 0;
             }
+            .scorm-xblock {
+                display: flex;
+                flex-direction: row;
+                justify-content: center;
+                margin: 4%;
+                border: 1px solid gray;
+            }
+            .navigational-panel {
+                width: 100%;
+            }
+            .scorm-embedded {
+                width: 100%;
+                height: 500px;
+                border: none;
+            }
+            .navigation-title:hover {
+                cursor: pointer;
+                text-decoration: underline;
+            }
+
+            /* Responsive styles */
+            @media screen and (min-width: 768px) {
+                .scorm-xblock {
+                    flex-direction: row;
+                }
+                .navigational-panel {
+                    width: 30%;
+                }
+                .scorm-embedded {
+                    width: 70%;
+                    height: 700px;
+                }
+            }
         </style>
     </head>
     <body>
+        <div class="scorm-xblock">
+            <div class="navigational-panel" style="width: {% if scorm_xblock.navigation_menu_width %}{{scorm_xblock.navigation_menu_width}}px{% else %}30%{% endif %};">
+                <h4>Table of contents</h4>
+                <ul>
+                    {{navigation_menu|safe }}
+                </ul>
+            </div>
         <iframe class="scorm-embedded" src="{{ index_page_url }}" width="{{ width }}" height="{{ height }}"></iframe>
         <script>
             window.resizeTo({{ width }} + 20, {{ height }} + 20);
+            window.onload = function () {
+                var navigationTitles = document.getElementsByClassName("navigation-title");
+                for (let i = 0; i < navigationTitles.length; i++) {
+                    navigationTitle = navigationTitles[i];
+                    navigationTitle.onclick = function () {
+                        let path = navigationTitle.getAttribute('href');
+                        document.getElementsByClassName("scorm-embedded")[0].src = this.getAttribute('href');
+                    }
+                }
+            }
         </script>
   </body>
 </html>
