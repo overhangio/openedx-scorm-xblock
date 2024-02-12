@@ -17,7 +17,7 @@
             
             <div class="scorm-panel">
 
-                {% if scorm_xblock.enable_navigation_menu %}
+                {% if scorm_xblock.enable_navigation_menu and not scorm_xblock.popup_on_launch%}
                 <div class="navigation-pane" style="width: {% if scorm_xblock.navigation_menu_width %}{{scorm_xblock.navigation_menu_width}}px{% else %}30%{% endif %};">
                     <h4>Table of contents</h4>
 
