@@ -177,18 +177,20 @@ function ScormXBlock(runtime, element, settings) {
         "cmi.completion_status",
         "cmi.success_status",
         "cmi.core.score.raw",
-        "cmi.score.raw"
+        "cmi.score.raw",
+        "cmi.mode"
     ];
     var getValueUrl = runtime.handlerUrl(element, 'scorm_get_value');
-    var GetValue = function (cmi_element) {
+    var GetValue = function (cmi_element) {   
         // Only make a call if navigation menu was not used
         // Otherwise the synchronous calls are blocked by chromium on page unload
-        if (uncachedValues.includes(cmi_element) && !navigationClick) {
+        if (uncachedValues.includes(cmi_element) && !navigationClick){
             $.ajax({
                 type: "POST",
                 url: getValueUrl,
                 data: JSON.stringify({
-                    'name': cmi_element
+                    'name': cmi_element,
+                    'url': window.location.href
                 }),
                 async: false,
                 success: function (response) {
@@ -196,7 +198,6 @@ function ScormXBlock(runtime, element, settings) {
                     navigationClick = false;
                     return response.value;
                 }
-
             });
         } else if (cmi_element in settings.scorm_data) {
             navigationClick = false;
@@ -205,7 +206,7 @@ function ScormXBlock(runtime, element, settings) {
         navigationClick = false;
         return "";
     };
-
+    
     var setValueEvents = [];
     var processingSetValueEventsQueue = false;
     var setValuesUrl = runtime.handlerUrl(element, 'scorm_set_values');

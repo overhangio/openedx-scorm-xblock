@@ -411,6 +411,11 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Path to the folder where packages will be extracted.
         """
         return os.path.join(self.scorm_location(), self.location.block_id)
+    
+    def get_mode(self,data):
+        if('preview' in data['url']):
+            return "review"
+        return "normal"
 
     @XBlock.json_handler
     def scorm_get_value(self, data, _suffix):
@@ -418,6 +423,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Here we get only the get_value events that were not filtered by the LMSGetValue js function.
         """
         name = data.get("name")
+        if name in ["cmi.core.lesson_mode", "cmi.mode"]:
+            return {"value": self.get_mode(data)}
         if name in ["cmi.core.lesson_status", "cmi.completion_status"]:
             return {"value": self.lesson_status}
         if name == "cmi.success_status":
