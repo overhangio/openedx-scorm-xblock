@@ -201,6 +201,13 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             "can_view_student_reports": self.can_view_student_reports,
             "scorm_xblock": self,
             "navigation_menu": self.navigation_menu,
+            "cmi.location": self.scorm_data.get("cmi.location"),
+            "cmi.session_time": self.scorm_data.get("cmi.session_time"),
+            "cmi.completion_status": self.scorm_data.get("cmi.completion_status"),
+            "cmi.success_status": self.scorm_data.get("cmi.success_status"),
+            "cmi.score.scaled": self.scorm_data.get("cmi.score.scaled"),
+            "cmi.exit": self.scorm_data.get("cmi.exit"),
+            "cmi.mode": self.scorm_data.get("cmi.mode"),
         }
         student_context.update(context or {})
         template = self.render_template("static/html/scormxblock.html", student_context)
