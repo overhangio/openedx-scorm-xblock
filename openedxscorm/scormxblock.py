@@ -559,10 +559,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
         prefix = "{" + namespace + "}" if namespace else ""
         resource = root.find(
-            "{prefix}resources/{prefix}resource[@href]".format(prefix=prefix)
+            f"{prefix}resources/{prefix}resource[@href]"
         )
         schemaversion = root.find(
-            "{prefix}metadata/{prefix}schemaversion".format(prefix=prefix)
+            f"{prefix}metadata/{prefix}schemaversion"
         )
 
         self.extract_navigation_titles(root, prefix)
@@ -586,7 +586,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             prefix (string): namespace to match with in the xml file
         """
         organizations = root.findall(
-            "{prefix}organizations/{prefix}organization".format(prefix=prefix)
+            f"{prefix}organizations/{prefix}organization"
         )
         navigation_menu_titles = []
         # Get data for all organizations
@@ -614,8 +614,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Returns:
             List: Nested list of all the title tags and their resources
         """
-        children = item.findall("{prefix}item".format(prefix=prefix))
-        item_title = item.find("{prefix}title".format(prefix=prefix)).text
+        children = item.findall(f"{prefix}item")
+        item_title = item.find(f"{prefix}title").text
         # Sanitizing every title tag to protect against XSS attacks
         sanitized_title = self.sanitize_input(item_title)
         item_identifier = item.get("identifierref")
@@ -624,9 +624,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             resource_link = "#"
         else:
             resource = root.find(
-                "{prefix}resources/{prefix}resource[@identifier='{identifier}']".format(
-                    prefix=prefix, identifier=item_identifier
-                )
+                f"{prefix}resources/{prefix}resource[@identifier='{item_identifier}']"
             )
             # Attach the storage path with the file path
             resource_link = urllib.parse.unquote(
@@ -659,14 +657,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             if type(items) is tuple:
                 title, resource_url = items[0], items[1]
                 if resource_url != "#":
-                    return "{indent}<li href='{resource_url}' class='navigation-title'>{title}</li>".format(
-                        indent=indent, resource_url=resource_url, title=title
-                    )
-                return (
-                    "{indent}<li class='navigation-title-header'>{title}</li>".format(
-                        indent=indent, title=title
-                    )
-                )
+                    return f"{indent}<li href='{resource_url}' class='navigation-title'>{title}</li>"
+
+                return f"{indent}<li class='navigation-title-header'>{title}</li>"
 
             output = []
             # If parent node, create another nested unordered list and return
@@ -712,9 +705,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         """
         path = self.get_file_path(filename, self.extract_folder_path)
         if path is None:
-            raise ScormError(
-                "Invalid package: could not find '{}' file".format(filename)
-            )
+            raise ScormError(f"Invalid package: could not find '{filename}' file")
         return path
 
     def get_file_path(self, filename, root):
@@ -795,9 +786,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             [
                 {
                     "data": {"student_id": enrollment.user.id},
-                    "value": "{} ({})".format(
-                        enrollment.user.username, enrollment.user.email
-                    ),
+                    "value": f"{enrollment.user.username} ({enrollment.user.email})"
                 }
                 for enrollment in enrollments[:20]
             ]
@@ -812,7 +801,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             user_id = int(user_id)
         except (TypeError, ValueError):
             return Response(
-                body="Invalid 'id' parameter {}".format(user_id), status=400
+                body=f"Invalid 'id' parameter {user_id}", status=400
             )
         try:
             module = StudentModule.objects.filter(
@@ -822,7 +811,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             ).get()
         except StudentModule.DoesNotExist:
             return Response(
-                body="No data found for student id={}".format(user_id),
+                body=f"No data found for student id={user_id}",
                 status=404,
             )
         except StudentModule.MultipleObjectsReturned:
@@ -904,10 +893,10 @@ def parse_validate_positive_float(value, name):
         parsed = float(value)
     except (TypeError, ValueError):
         raise ValueError(
-            "Could not parse value of '{}' (must be float): {}".format(name, value)
+            f"Could not parse value of '{name}' (must be float): {value}"
         )
     if parsed < 0:
-        raise ValueError("Value of '{}' must not be negative: {}".format(name, value))
+        raise ValueError(f"Value of '{name}' must not be negative: {value}")
     return parsed
 
 
