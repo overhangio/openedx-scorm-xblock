@@ -1,6 +1,7 @@
 """
 Storage backend for scorm metadata export.
 """
+
 import os
 from django.conf import settings
 
@@ -12,7 +13,9 @@ class S3ScormStorage(S3Boto3Storage):
     S3 backend for scorm metadata export
     """
 
-    def __init__(self, xblock, bucket_name=None, querystring_auth=None, querystring_expire=None):
+    def __init__(
+        self, xblock, bucket_name=None, querystring_auth=None, querystring_expire=None
+    ):
         self.xblock = xblock
         # No need to serve assets from a custom domain.
         self.custom_domain = None

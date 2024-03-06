@@ -67,7 +67,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     By default, static assets are stored in the default Django storage backend. To
     override this behaviour, you should define a custom storage function. This
     function must take the xblock instance as its first and only argument. For instance,
-    you can store assets in different directories depending on the XBlock organisation with::
+    you can store assets in different directories depending on the XBlock organization with::
 
         def scorm_storage(xblock):
             from django.conf import settings
@@ -158,13 +158,15 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     )
 
     navigation_menu = String(scope=Scope.settings, default="")
-    
+
     navigation_menu_width = Integer(
         display_name=_("Display width of navigation menu(px)"),
-        help=_("Width of navigation menu. This assumes that Navigation Menu is enabled. (default: 30%)"),
+        help=_(
+            "Width of navigation menu. This assumes that Navigation Menu is enabled. (default: 30%)"
+        ),
         scope=Scope.settings,
     )
-    
+
     has_author_view = True
 
     def render_template(self, template_path, context):
@@ -187,9 +189,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def author_view(self, context=None):
         context = context or {}
         if not self.index_page_path:
-            context[
-                "message"
-            ] = "Click 'Edit' to modify this module and upload a new SCORM package."
+            context["message"] = "Click 'Edit' to modify this module and upload a new SCORM package."
         context["can_view_student_reports"] = True
         return self.student_view(context=context)
 
@@ -201,7 +201,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             "can_view_student_reports": self.can_view_student_reports,
             "scorm_xblock": self,
             "navigation_menu": self.navigation_menu,
-            "popup_on_launch": self.popup_on_launch
+            "popup_on_launch": self.popup_on_launch,
         }
         student_context.update(context or {})
         template = self.render_template("static/html/scormxblock.html", student_context)
@@ -242,7 +242,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         file_name = os.path.basename(suffix)
         signed_url = self.storage.url(suffix)
         if request.query_string:
-            signed_url = '&'.join([signed_url, request.query_string])
+            signed_url = "&".join([signed_url, request.query_string])
         file_type, _ = mimetypes.guess_type(file_name)
         with urllib.request.urlopen(signed_url) as response:
             file_content = response.read()
@@ -285,7 +285,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         self.height = parse_int(request.params["height"], None)
         self.has_score = request.params["has_score"] == "1"
         self.enable_navigation_menu = request.params["enable_navigation_menu"] == "1"
-        self.navigation_menu_width = parse_int(request.params["navigation_menu_width"], None)
+        self.navigation_menu_width = parse_int(
+            request.params["navigation_menu_width"], None
+        )
         self.weight = parse_float(request.params["weight"], 1)
         self.popup_on_launch = request.params["popup_on_launch"] == "1"
         self.icon_class = "problem" if self.has_score else "video"
@@ -323,7 +325,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                 "height": self.height or 800,
                 "navigation_menu": self.navigation_menu,
                 "navigation_menu_width": self.navigation_menu_width,
-                "enable_navigation_menu": self.enable_navigation_menu
+                "enable_navigation_menu": self.enable_navigation_menu,
             },
         )
         return Response(body=rendered)
@@ -411,9 +413,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Path to the folder where packages will be extracted.
         """
         return os.path.join(self.scorm_location(), self.location.block_id)
-    
-    def get_mode(self,data):
-        if('preview' in data['url']):
+
+    def get_mode(self, data):
+        if "preview" in data["url"]:
             return "review"
         return "normal"
 
@@ -491,7 +493,11 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             self.success_status = success_status
         if completion_status == "completed":
             self.emit_completion(1)
-        if success_status or completion_status == "completed" or (is_completed and lesson_score):
+        if (
+            success_status
+            or completion_status == "completed"
+            or (is_completed and lesson_score)
+        ):
             if self.has_score:
                 self.publish_grade()
 
@@ -579,18 +585,23 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             root (XMLTag): root of the imsmanifest.xml file
             prefix (string): namespace to match with in the xml file
         """
-        organizations = root.findall('{prefix}organizations/{prefix}organization'.format(prefix=prefix))
+        organizations = root.findall(
+            "{prefix}organizations/{prefix}organization".format(prefix=prefix)
+        )
         navigation_menu_titles = []
         # Get data for all organizations
         for organization in organizations:
-            navigation_menu_titles.append(self.find_titles_recursively(organization, prefix, root))
+            navigation_menu_titles.append(
+                self.find_titles_recursively(organization, prefix, root)
+            )
         self.navigation_menu = self.recursive_unorderedlist(navigation_menu_titles)
-        
+
     def sanitize_input(self, input_str):
         """Removes script tags from string"""
-        sanitized_str = re.sub(r'<script\b[^>]*>(.*?)</script>', '', input_str, flags=re.IGNORECASE)
+        sanitized_str = re.sub(
+            r"<script\b[^>]*>(.*?)</script>", "", input_str, flags=re.IGNORECASE
+        )
         return sanitized_str
-        
 
     def find_titles_recursively(self, item, prefix, root):
         """Recursively iterate through the organization tags and extract the title and resources
@@ -603,8 +614,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Returns:
             List: Nested list of all the title tags and their resources
         """
-        children = item.findall('{prefix}item'.format(prefix=prefix))
-        item_title = item.find('{prefix}title'.format(prefix=prefix)).text
+        children = item.findall("{prefix}item".format(prefix=prefix))
+        item_title = item.find("{prefix}title".format(prefix=prefix)).text
         # Sanitizing every title tag to protect against XSS attacks
         sanitized_title = self.sanitize_input(item_title)
         item_identifier = item.get("identifierref")
@@ -612,19 +623,25 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         if not item_identifier:
             resource_link = "#"
         else:
-            resource = root.find("{prefix}resources/{prefix}resource[@identifier='{identifier}']".format(prefix=prefix, identifier=item_identifier))
+            resource = root.find(
+                "{prefix}resources/{prefix}resource[@identifier='{identifier}']".format(
+                    prefix=prefix, identifier=item_identifier
+                )
+            )
             # Attach the storage path with the file path
             resource_link = urllib.parse.unquote(
-                self.storage.url(os.path.join(self.extract_folder_path, resource.get("href")))
+                self.storage.url(
+                    os.path.join(self.extract_folder_path, resource.get("href"))
+                )
             )
         if not children:
             return [(sanitized_title, resource_link)]
         child_titles = []
         for child in children:
-            if 'isvisible' in child.attrib and child.attrib['isvisible'] == "true":
+            if "isvisible" in child.attrib and child.attrib["isvisible"] == "true":
                 child_titles.extend(self.find_titles_recursively(child, prefix, root))
         return [(sanitized_title, resource_link), child_titles]
-    
+
     def recursive_unorderedlist(self, value):
         """Create an HTML unordered list recursively to display navigation menu
 
@@ -642,29 +659,47 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             if type(items) is tuple:
                 title, resource_url = items[0], items[1]
                 if resource_url != "#":
-                    return "{indent}<li href='{resource_url}' class='navigation-title'>{title}</li>".format(indent=indent, resource_url=resource_url, title=title)
-                return "{indent}<li class='navigation-title-header'>{title}</li>".format(indent=indent, title=title)
-            
+                    return "{indent}<li href='{resource_url}' class='navigation-title'>{title}</li>".format(
+                        indent=indent, resource_url=resource_url, title=title
+                    )
+                return (
+                    "{indent}<li class='navigation-title-header'>{title}</li>".format(
+                        indent=indent, title=title
+                    )
+                )
+
             output = []
             # If parent node, create another nested unordered list and return
             if has_children(items):
                 parent, children = items[0], items[1]
                 title, resource_url = parent[0], parent[1]
                 for child in children:
-                    output.append(format(child, tabs+1))
+                    output.append(format(child, tabs + 1))
                 if resource_url != "#":
-                    return "\n{indent}<ul>\n{indent}<li href='{resource_url}' class='navigation-title'>{title}</li>\n{indent}<ul>\n{indent}\n{output}</ul>\n{indent}</ul>".format(indent=indent, resource_url=resource_url, title=title, output="\n".join(output))
-                return "\n{indent}<ul>\n{indent}<li class='navigation-title-header'>{title}</li>\n{indent}<ul>\n{indent}\n{output}</ul>\n{indent}</ul>".format(indent=indent, resource_url=resource_url, title=title, output="\n".join(output))
+                    return "\n{indent}<ul>\n{indent}<li href='{resource_url}' class='navigation-title'>{title}</li>\n{indent}<ul>\n{indent}\n{output}</ul>\n{indent}</ul>".format(
+                        indent=indent,
+                        resource_url=resource_url,
+                        title=title,
+                        output="\n".join(output),
+                    )
+                return "\n{indent}<ul>\n{indent}<li class='navigation-title-header'>{title}</li>\n{indent}<ul>\n{indent}\n{output}</ul>\n{indent}</ul>".format(
+                    indent=indent,
+                    resource_url=resource_url,
+                    title=title,
+                    output="\n".join(output),
+                )
             else:
                 for item in items:
-                    output.append(format(item, tabs+1))
-                return "{indent}\n{indent}<ul>\n{output}\n{indent}</ul>".format(indent=indent, output="\n".join(output))
-        
+                    output.append(format(item, tabs + 1))
+                return "{indent}\n{indent}<ul>\n{output}\n{indent}</ul>".format(
+                    indent=indent, output="\n".join(output)
+                )
+
         unordered_lists = []
         # Append navigation menus for all organizations in course
         for organization in value:
             unordered_lists.append(format(organization))
-        
+
         return "\n".join(unordered_lists)
 
     def find_relative_file_path(self, filename):
