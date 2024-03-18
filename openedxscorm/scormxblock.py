@@ -15,7 +15,7 @@ from django.template import Context, Template
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from webob import Response
-import pkg_resources
+import importlib_resources
 from six import string_types
 
 from web_fragments.fragment import Fragment
@@ -183,7 +183,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     @staticmethod
     def resource_string(path):
         """Handy helper for getting static resources from our kit."""
-        data = pkg_resources.resource_string(__name__, path)
+        data = importlib_resources.files(__name__).joinpath(path).read_bytes()
         return data.decode("utf8")
 
     def author_view(self, context=None):
