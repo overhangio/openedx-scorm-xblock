@@ -178,6 +178,7 @@ function ScormXBlock(runtime, element, settings) {
         "cmi.success_status",
         "cmi.core.score.raw",
         "cmi.score.raw",
+        "cmi.score.scaled",
         "cmi.mode"
     ];
     var getValueUrl = runtime.handlerUrl(element, 'scorm_get_value');
