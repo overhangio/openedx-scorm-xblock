@@ -255,3 +255,14 @@ class ScormXBlockTests(unittest.TestCase):
 
         self.assertEqual(response.json, {"value": 20})
 
+    def test_scorm_data_has_user_info_in_student_view(self):
+        block = self.make_one()
+
+        block.student_view()
+        student_info_keys = [
+            "cmi.core.student_id",
+            "cmi.learner_id",
+            "cmi.learner_name",
+            "cmi.core.student_name",
+        ]
+        self.assertTrue(key in block.scorm_data for key in student_info_keys)
