@@ -1,6 +1,7 @@
 import io
 import os
 from setuptools import setup
+from openedxscorm.__about__ import __version__
 
 
 def package_data(pkg, roots):
@@ -26,7 +27,7 @@ with io.open(os.path.join(here, "README.rst"), "rt", encoding="utf8") as f:
 
 setup(
     name="openedx-scorm-xblock",
-    version="17.0.1",
+    version=__version__,
     description="Scorm XBlock for Open edX",
     long_description=readme,
     long_description_content_type="text/x-rst",
