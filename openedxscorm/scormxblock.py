@@ -8,6 +8,7 @@ import zipfile
 import mimetypes
 import urllib
 
+from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db.models import Q
@@ -167,7 +168,23 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         scope=Scope.settings,
     )
 
+    # To save the value of package_path across course exports or unit/subsection duplicates
+    package_file_path = String(scope=Scope.settings, default="")
+
     has_author_view = True
+
+    @property
+    def package_path(self):
+        """
+        Get file path of storage.
+        """
+        return (
+            "{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}/{sha1}{ext}"
+        ).format(
+            loc=self.location,
+            sha1=self.package_meta["sha1"],
+            ext=os.path.splitext(self.package_meta["name"])[1],
+        )
 
     def render_template(self, template_path, context):
         template_str = self.resource_string(template_path)
@@ -194,6 +211,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         return self.student_view(context=context)
 
     def student_view(self, context=None):
+        if not self.storage.exists(self.extract_folder_base_path) and self.package_file_path:
+            self.extract_package(self.storage.open(self.package_file_path))
         student_context = {
             "index_page_url": urllib.parse.unquote(self.index_page_url),
             "completion_status": self.lesson_status,
@@ -299,6 +318,17 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
         package_file = request.params["file"].file
         self.update_package_meta(package_file)
+
+        # First, save scorm file in the storage for later use
+        # We only download this file and use it in case storage does not exist
+        # i.e, the unuzipped scorm data has been deleted or the path has changed
+        if self.storage.exists(self.package_path):
+            logger.info('Removing previously uploaded "%s"', self.package_path)
+            self.storage.delete(self.package_path)
+        self.storage.save(self.package_path, File(package_file))
+        logger.info('Scorm "%s" file stored at "%s"', package_file, self.package_path)
+        # save the package path so that it is maintained across course imports
+        self.package_file_path = self.package_path
 
         # Clean storage folder, if it already exists
         self.clean_storage()
@@ -411,6 +441,23 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def extract_folder_base_path(self):
         """
         Path to the folder where packages will be extracted.
+        Compute hash of the unique block usage_id and use that as our directory name.
+        """
+        # For backwards compatibility, we return the old path if the directory exists
+        if self.storage.exists(self.extract_old_folder_base_path):
+            return self.extract_old_folder_base_path
+        sha1 = hashlib.sha1()
+        sha1.update(str(self.scope_ids.usage_id).encode())
+        hashed_usage_id = sha1.hexdigest()
+        return os.path.join(self.scorm_location(), hashed_usage_id)
+    
+    @property
+    def extract_old_folder_base_path(self):
+        """
+        Deprecated Path to the folder where packages will be extracted.
+        Deprecated as the block_id was shared by courses when exporting and importing
+        them, thus causing storage conflicts.
+        Only keeping this here for backwards compatibility.
         """
         return os.path.join(self.scorm_location(), self.location.block_id)
 
