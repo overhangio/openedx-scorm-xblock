@@ -411,6 +411,23 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def extract_folder_base_path(self):
         """
         Path to the folder where packages will be extracted.
+        Compute hash of the unique block usage_id and use that as our directory name.
+        """
+        # For backwards compatibility, we return the old path if the directory exists
+        if self.storage.exists(self.extract_old_folder_base_path):
+            return self.extract_old_folder_base_path
+        sha1 = hashlib.sha1()
+        sha1.update(str(self.scope_ids.usage_id).encode())
+        hashed_usage_id = sha1.hexdigest()
+        return os.path.join(self.scorm_location(), hashed_usage_id)
+    
+    @property
+    def extract_old_folder_base_path(self):
+        """
+        Deprecated Path to the folder where packages will be extracted.
+        Deprecated as the block_id was shared by courses when exporting and importing
+        them, thus causing storage conflicts.
+        Only keeping this here for backwards compatibility.
         """
         return os.path.join(self.scorm_location(), self.location.block_id)
 
