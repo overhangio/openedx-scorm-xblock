@@ -180,6 +180,15 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def get_current_user(self):
         return self.runtime.service(self, "user").get_current_user()
 
+    def initialize_student_info(self):
+        user_id = self.get_current_user_attr("edx-platform.user_id")
+        username = self.get_current_user_attr("edx-platform.username")
+        
+        self.scorm_data["cmi.core.student_id"] = user_id
+        self.scorm_data["cmi.learner_id"] = user_id
+        self.scorm_data["cmi.learner_name"] = username
+        self.scorm_data["cmi.core.student_name"] = username
+
     @staticmethod
     def resource_string(path):
         """Handy helper for getting static resources from our kit."""
@@ -204,6 +213,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             "popup_on_launch": self.popup_on_launch,
         }
         student_context.update(context or {})
+        self.initialize_student_info()
         template = self.render_template("static/html/scormxblock.html", student_context)
         frag = Fragment(template)
         frag.add_css(self.resource_string("static/css/scormxblock.css"))

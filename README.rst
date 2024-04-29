@@ -144,7 +144,7 @@ Development
 
 Run unit tests with::
 
-    $ NO_PREREQ_INSTALL=1 paver test_system -s lms -t openedxscorm
+    $ pytest /mnt/openedx-scorm-xblock/openedxscorm/tests.py
 
 Troubleshooting
 ---------------
