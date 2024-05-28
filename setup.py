@@ -1,8 +1,24 @@
 import io
 import os
+import re
 from setuptools import setup
-from openedxscorm.__about__ import __version__
 
+
+def get_version(*file_paths):
+    """
+    Extract the version string from the file at the given relative path fragments.
+    """
+    filename = os.path.join(os.path.dirname(__file__), *file_paths)
+    with open(filename, encoding='utf-8') as opened_file:
+        version_file = opened_file.read()
+        version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                                  version_file, re.M)
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError('Unable to find version string.')
+
+
+VERSION = get_version("openedxscorm", "__about__.py")
 
 def package_data(pkg, roots):
     """Generic function to find package_data.
@@ -27,7 +43,7 @@ with io.open(os.path.join(here, "README.rst"), "rt", encoding="utf8") as f:
 
 setup(
     name="openedx-scorm-xblock",
-    version=__version__,
+    version=VERSION,
     description="Scorm XBlock for Open edX",
     long_description=readme,
     long_description_content_type="text/x-rst",
