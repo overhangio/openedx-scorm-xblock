@@ -15,3 +15,17 @@ instructions, because git commits are used to generate release notes:
 -->
 
 <!-- scriv-insert-here -->
+
+<a id='changelog-18.0.0'></a>
+## v18.0.0 (2024-05-29)
+
+- [Improvement] Add a scriv-compliant changelog. (by @Danyal-Faheem)
+
+- [Bugfix] Prevent overwriting of exported course scorm data by imported course. (by @Danyal-Faheem)
+  - Use usage_key instead of block_id as the location identifier for scorm data as it is unique across course imports.
+  - This change will not take effect for previously created scorm modules.
+
+- [Improvement] Removed student information and other scorm data from get value func and sends it as part of
+`scorm_data` in student view. (By @ahmed-arb)
+ - Added `cmi.score.scaled` to uncached_values,
+ - Removed old test cases.
