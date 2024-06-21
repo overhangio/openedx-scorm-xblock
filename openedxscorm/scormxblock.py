@@ -341,7 +341,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         return Response(body=rendered)
 
     def clean_storage(self):
-        if self.storage.exists(self.extract_folder_base_path):
+        if self.path_exists(self.extract_folder_base_path):
             logger.info(
                 'Removing previously unzipped "%s"', self.extract_folder_base_path
             )
@@ -400,7 +400,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             return ""
         folder = self.extract_folder_path
         if self.storage.exists(
-            os.path.join(self.extract_folder_base_path, self.index_page_path)
+            os.path.join(self.extract_folder_base_path, self.clean_path(self.index_page_path))
         ):
             # For backward-compatibility, we must handle the case when the xblock data
             # is stored in the base folder.
@@ -417,6 +417,22 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         """
         return os.path.join(self.extract_folder_base_path, self.package_meta["sha1"])
 
+    def clean_path(self, path):
+        """
+        Removes query string from a path
+        """
+        return path.split('?')[0] if path else path
+    
+    def path_exists(self, path):
+        """
+        Returs True if given path exists in storage otherwise returns False
+        """
+        try:
+            dirs, files = self.storage.listdir(path)
+            return True if dirs or files else False
+        except FileNotFoundError:
+            return False
+
     @property
     def extract_folder_base_path(self):
         """
@@ -424,7 +440,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Compute hash of the unique block usage_id and use that as our directory name.
         """
         # For backwards compatibility, we return the old path if the directory exists
-        if self.storage.exists(self.extract_old_folder_base_path):
+        if self.path_exists(self.extract_old_folder_base_path):
             return self.extract_old_folder_base_path
         sha1 = hashlib.sha1()
         sha1.update(str(self.scope_ids.usage_id).encode())
