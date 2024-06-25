@@ -264,8 +264,16 @@ function ScormXBlock(runtime, element, settings) {
         });
     };
 
+    function initScormIframe() {
+        var iframe = $(element).find('.scorm-embedded');
+        if (iframe.length) {
+            iframe.attr('src', settings.index_page_url);
+        }
+    }
+
     $(function ($) {
         initScorm(settings.scorm_version, GetValue, SetValue);
+        initScormIframe();
         initFullscreen();
         initPopupWindow();
         initReports();

@@ -203,8 +203,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         return self.student_view(context=context)
 
     def student_view(self, context=None):
+        index_page_url = urllib.parse.unquote(self.index_page_url)
+
         student_context = {
-            "index_page_url": urllib.parse.unquote(self.index_page_url),
+            "index_page_url": index_page_url,
             "completion_status": self.lesson_status,
             "grade": self.get_grade(),
             "can_view_student_reports": self.can_view_student_reports,
@@ -228,6 +230,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                 "popup_width": self.width or 800,
                 "popup_height": self.height or 800,
                 "scorm_data": self.scorm_data,
+                "index_page_url": index_page_url,
             },
         )
         return frag
