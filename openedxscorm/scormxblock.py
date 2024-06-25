@@ -15,14 +15,21 @@ from django.template import Context, Template
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from webob import Response
-import importlib_resources
 from six import string_types
-
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.completable import CompletableXBlockMixin
 from xblock.exceptions import JsonHandlerError
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
+
+try:
+    # Older Open edX releases (Redwood and earlier) install a backported version of
+    # importlib.resources: https://pypi.org/project/importlib-resources/
+    import importlib_resources
+except ModuleNotFoundError:
+    # Starting with Sumac, Open edX drops importlib-resources in favor of the standard library:
+    # https://docs.python.org/3/library/importlib.resources.html#module-importlib.resources
+    from importlib import resources as importlib_resources
 
 try:
     try:
