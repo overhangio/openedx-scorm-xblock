@@ -16,6 +16,18 @@ instructions, because git commits are used to generate release notes:
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-18.0.2'></a>
+## v18.0.2 (2024-07-01)
+
+- [Bugfix] Scorm file upload error which zip is compressed with Windows OS. (by @talhaaslam01)
+
+- [Bugfix] Fix a bug where the scorm block would fail to load with an error message `No module named 'importlib_resources'` (by @kdmccormick)
+
+<a id='changelog-18.0.1'></a>
+## v18.0.2 (2024-06-21)
+
+- [Bugfix] Make addition of block usage key in scorm path backward compatible. (by @ziafazal)
+
 <a id='changelog-18.0.0'></a>
 ## v18.0.0 (2024-05-29)
 
