@@ -49,6 +49,7 @@ def _(text):
 
 
 logger = logging.getLogger(__name__)
+OS_PATH_ALT_SEP = '\\'
 
 
 @XBlock.wants("settings")
@@ -391,7 +392,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                     # the is_dir() method to verify whether a ZipInfo object points to a
                     # directory.
                     # https://docs.python.org/3.6/library/zipfile.html#zipfile.ZipInfo.is_dir
-                    if not zipinfo.filename.endswith("/"):
+                    # TODO: remove backported 'is_dir' method once upgraded to 
+                    # python 3.12.3 or greater. 
+                    if not is_dir(zipinfo):
                         dest_path = os.path.join(
                             self.extract_folder_path,
                             os.path.relpath(zipinfo.filename, root_path),
@@ -948,6 +951,19 @@ def parse_validate_positive_float(value, name):
     if parsed < 0:
         raise ValueError(f"Value of '{name}' must not be negative: {value}")
     return parsed
+
+
+def is_dir(zipinfo):
+    """Return True if this archive member is a directory."""
+    if zipinfo.filename.endswith('/'):
+        return True
+    elif zipinfo.filename.endswith((os.path.sep, OS_PATH_ALT_SEP)):
+        # The ZIP format specification requires to use forward slashes
+        # as the directory separator, but in practice some ZIP files
+        # created on Windows can use backward slashes.  For compatibility
+        # with the extraction code which already handles this:
+        return True
+    return False 
 
 
 class ScormError(Exception):
