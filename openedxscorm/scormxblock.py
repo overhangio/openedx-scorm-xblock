@@ -284,7 +284,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             "field_height": self.fields["height"],
             "field_popup_on_launch": self.fields["popup_on_launch"],
             "field_enable_navigation_menu": self.fields["enable_navigation_menu"],
-            "field_fullscreen_button": self.fields["enable_fullscreen_button"],
+            "field_enable_fullscreen_button": self.fields["enable_fullscreen_button"],
             "field_navigation_menu_width": self.fields["navigation_menu_width"],
             "popup_on_launch": self.fields["popup_on_launch"],
             "scorm_xblock": self,
