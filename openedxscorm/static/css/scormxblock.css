@@ -91,6 +91,10 @@
     display: none;
 }
 
+.scorm-reports {
+    margin-top: 2rem;
+}
+
 /* Popup window */
 .scorm-xblock:not(.can-popup) .popup-wrapper {
     display: none;
@@ -110,4 +114,10 @@
 }
 .scorm-xblock .reports-togglable-off {
     display: none;
+}
+.report {
+    margin: 1rem 0;
+}
+.reload-report {
+    margin: 0 1rem;
 }

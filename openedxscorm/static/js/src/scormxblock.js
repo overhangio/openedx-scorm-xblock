@@ -156,7 +156,7 @@ function ScormXBlock(runtime, element, settings) {
         }).success(function (data) {
             reportElement.html(renderjson.set_show_to_level(1)(data));
         }).fail(function () {
-            reportElement.html("no data found");
+            reportElement.html("No data found");
         }).complete(function () {
             $(element).find(".reload-report").removeClass("reports-togglable-off");
         });
