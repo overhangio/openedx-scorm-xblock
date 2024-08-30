@@ -8,15 +8,19 @@ on:
 jobs:
 
    push:
-     runs-on: ubuntu-20.04
+     runs-on: ubuntu-latest
+     environment:
+      name: pypi
+      url: https://pypi.org/project/openedx-scorm-xblock
 
      steps:
        - name: Checkout
-         uses: actions/checkout@v1
+         uses: actions/checkout@v4
+
        - name: setup python
-         uses: actions/setup-python@v2
+         uses: actions/setup-python@v5
          with:
-           python-version: 3.8
+           python-version: 3.12
 
        - name: Install setup tool and wheel
          run: pip install setuptools wheel
@@ -25,7 +29,4 @@ jobs:
          run: python setup.py sdist bdist_wheel
 
        - name: Publish to PyPi
-         uses: pypa/gh-action-pypi-publish@master
-         with:
-           user: __token__
-           password: ${{ secrets.PYPI_UPLOAD_TOKEN }}
+         uses: pypa/gh-action-pypi-publish@release/v1
