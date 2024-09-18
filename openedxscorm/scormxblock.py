@@ -167,7 +167,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     enable_fullscreen_button = Boolean(
         display_name=_("Show Fullscreen Button"),
         help=_("Select True to show fullscreen button in the SCORM content"),
-        default=False,
+        default=True,
         scope=Scope.settings,
     )
 
