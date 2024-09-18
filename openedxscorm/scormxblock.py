@@ -243,8 +243,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     @XBlock.handler
     def assets_proxy(self, request, suffix):
         """
-        Proxy view for serving assets. It receives a request with the path to the asset to serve, generates a pre-signed
-        URL to access the content in the AWS S3 bucket, and returns a redirect response to the pre-signed URL.
+        Proxy view for serving assets. It receives a request with the path to the asset to serve
+        and returns the asset's file contents.
 
         Parameters:
         ----------
