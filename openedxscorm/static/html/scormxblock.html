@@ -9,12 +9,13 @@
   {% endif %}
 
   <div class="scorm-content">
-
+            {% if scorm_xblock.enable_fullscreen_button %}
             <div class="fullscreen-controls">
                 <button class="enter-fullscreen">{% trans "Fullscreen" %}</button>
                 <button class="exit-fullscreen">{% trans "Exit fullscreen" %}</button>
             </div>
-            
+            {% endif %}
+
             <div class="scorm-panel">
 
                 {% if scorm_xblock.enable_navigation_menu and not scorm_xblock.popup_on_launch%}

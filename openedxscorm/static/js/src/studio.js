@@ -8,6 +8,7 @@ function ScormStudioXBlock(runtime, element) {
         var display_name = $(element).find('input[name=display_name]').val();
         var has_score = $(element).find('select[name=has_score]').val();
         var enable_navigation_menu = $(element).find('select[name=enable_navigation_menu]').val();
+        var enable_fullscreen_button = $(element).find('select[name=enable_fullscreen_button]').val();
         var weight = $(element).find('input[name=weight]').val();
         var width = $(element).find('input[name=width]').val();
         var height = $(element).find('input[name=height]').val();
@@ -18,6 +19,7 @@ function ScormStudioXBlock(runtime, element) {
         form_data.append('display_name', display_name);
         form_data.append('has_score', has_score);
         form_data.append('enable_navigation_menu', enable_navigation_menu);
+        form_data.append('enable_fullscreen_button', enable_fullscreen_button);
         form_data.append('weight', weight);
         form_data.append('width', width);
         form_data.append('height', height);
