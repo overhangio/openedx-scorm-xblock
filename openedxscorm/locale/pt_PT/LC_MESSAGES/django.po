@@ -1,0 +1,151 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-10-18 21:24+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: scormxblock.py:97
+msgid "Display Name"
+msgstr "Nome de apresentação"
+
+#: scormxblock.py:98
+msgid "Display name for this module"
+msgstr "Nome de apresentação para este módulo"
+
+#: scormxblock.py:103
+msgid "Path to the index page in scorm file"
+msgstr "Caminho para a página de índice no ficheiro scorm"
+
+#: scormxblock.py:120
+msgid "Weight"
+msgstr "Peso"
+
+#: scormxblock.py:121
+msgid "Weight/Maximum grade"
+msgstr "Peso/Máxima nota"
+
+#: scormxblock.py:125
+msgid "Scored"
+msgstr "Pontuável"
+
+#: scormxblock.py:127
+msgid ""
+"Select False if this component will not receive a numerical score from the "
+"Scorm"
+msgstr "Selecione Falso se este componente não receber uma pontuação numérica do Scorm"
+
+#: scormxblock.py:139
+msgid "Display width (px)"
+msgstr "Largura do ecrã (px)"
+
+#: scormxblock.py:140
+msgid "Width of iframe (default: 100%)"
+msgstr "Largura do iframe (predefinição: 100%)"
+
+#: scormxblock.py:144
+msgid "Display height (px)"
+msgstr "Altura do ecrã (px)"
+
+#: scormxblock.py:145
+msgid "Height of iframe"
+msgstr "Altura do iframe"
+
+#: scormxblock.py:150
+msgid "Launch in pop-up window"
+msgstr "Iniciar numa janela pop-up"
+
+#: scormxblock.py:152
+msgid ""
+"Launch in pop-up window instead of embedding the SCORM content in an iframe. "
+"Enable this for older packages that need to be run in separate window."
+msgstr "Lançar numa janela pop-up em vez de incorporar o conteúdo SCORM num iframe. "
+"Active esta opção para pacotes mais antigos que precisam de ser executados numa janela separada."
+
+#: scormxblock.py:160
+msgid "Display navigation menu"
+msgstr "Visualizar o menu de navegação"
+
+#: scormxblock.py:162
+msgid ""
+"Select True to display a navigation menu on the left side to display table "
+"of contents"
+msgstr "Selecione Verdadeiro para apresentar um menu de navegação no lado esquerdo para apresentar o índice"
+
+#: scormxblock.py:168
+msgid "Show Fullscreen Button"
+msgstr "Mostrar Botão ecrã completo"
+
+#: scormxblock.py:169
+msgid "Select True to show fullscreen button in the SCORM content"
+msgstr "Selecione Verdadeiro para mostrar o botão de ecrã inteiro no conteúdo SCORM"
+
+#: scormxblock.py:177
+msgid "Display width of navigation menu(px)"
+msgstr "Largura de visualização do menu de navegação (px)"
+
+#: scormxblock.py:179
+msgid ""
+"Width of navigation menu. This assumes that Navigation Menu is enabled. "
+"(default: 30%)"
+msgstr ""
+"Largura do menu de navegação. Isto pressupõe que o menu de navegação "
+"está ativado. (predefinição: 30%)"
+
+#: static/html/scormxblock.html:6
+msgid "points"
+msgstr "pontos"
+
+#: static/html/scormxblock.html:14
+msgid "Fullscreen"
+msgstr "Ecrã completo"
+
+#: static/html/scormxblock.html:15
+msgid "Exit fullscreen"
+msgstr "Sair do ecrã completo"
+
+#: static/html/scormxblock.html:33
+msgid "Launch unit in new window"
+msgstr "Abrir a unidade numa nova janela"
+
+#: static/html/scormxblock.html:51
+msgid "View SCORM reports"
+msgstr "Ver relatórios SCORM"
+
+#: static/html/studio.html:16
+msgid "Upload .zip package"
+msgstr "Carregar pacote .zip"
+
+#: static/html/studio.html:20
+msgid "Currently:"
+msgstr "Atualmente:"
+
+#: static/html/studio.html:28 static/html/studio.html:39
+#: static/html/studio.html:50 static/html/studio.html:92
+msgid "True"
+msgstr "Verdadeiro"
+
+#: static/html/studio.html:29 static/html/studio.html:40
+#: static/html/studio.html:51 static/html/studio.html:93
+msgid "False"
+msgstr "Falso"
+
+#: static/html/studio.html:103
+msgid "Save"
+msgstr "Guardar"
+
+#: static/html/studio.html:106
+msgid "Cancel"
+msgstr "Cancelar"
