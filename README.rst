@@ -136,7 +136,7 @@ These settings may be added to Tutor by creating a `plugin <https://docs.tutor.o
             "openedx-common-settings",
             """
     XBLOCK_SETTINGS["ScormXBlock"] = {
-        "STORAGE_FUNC": "openedxscorm.storage.s3"
+        "STORAGE_FUNC": "openedxscorm.storage.s3",
         "S3_BUCKET_NAME": "mybucket",
         ...
     }"""
