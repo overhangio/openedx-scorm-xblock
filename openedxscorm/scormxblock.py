@@ -267,7 +267,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         file_path = self.find_file_path(file_name)        
         file_type, _ = mimetypes.guess_type(file_name)
         with self.storage.open(file_path) as response:
-            file_content = response.read()        
+            file_content = response.read()
 
 
         return Response(file_content, content_type=file_type)
