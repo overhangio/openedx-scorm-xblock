@@ -264,12 +264,11 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Response object containing the content of the requested file with the appropriate content type.
         """
         file_name = os.path.basename(suffix)
-        signed_url = self.storage.url(suffix)
-        if request.query_string:
-            signed_url = "&".join([signed_url, request.query_string])
+        file_path = self.find_file_path(file_name)        
         file_type, _ = mimetypes.guess_type(file_name)
-        with urllib.request.urlopen(signed_url) as response:
+        with self.storage.open(file_path) as response:
             file_content = response.read()
+
 
         return Response(file_content, content_type=file_type)
 
@@ -417,16 +416,20 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def index_page_url(self):
         if not self.package_meta or not self.index_page_path:
             return ""
-        folder = self.extract_folder_path
         if self.storage.exists(
             os.path.join(self.extract_folder_base_path, self.clean_path(self.index_page_path))
         ):
             # For backward-compatibility, we must handle the case when the xblock data
             # is stored in the base folder.
-            folder = self.extract_folder_base_path
-            logger.warning("Serving SCORM content from old-style path: %s", folder)
+            logger.warning("Serving SCORM content from old-style path: %s", self.extract_folder_base_path)
 
-        return self.storage.url(os.path.join(folder, self.index_page_path))
+        return f"{self.proxy_base_url}/{self.index_page_path}"
+
+    @property
+    def proxy_base_url(self):
+        return self.runtime.handler_url(
+                self, "assets_proxy"
+            ).rstrip("?/")
 
     @property
     def extract_folder_path(self):
@@ -689,11 +692,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                 f"{prefix}resources/{prefix}resource[@identifier='{item_identifier}']"
             )
             # Attach the storage path with the file path
-            resource_link = urllib.parse.unquote(
-                self.storage.url(
-                    os.path.join(self.extract_folder_path, resource.get("href"))
-                )
-            )
+            resource_link = f"{self.proxy_base_url}/{resource.get('href')}"
         if not children:
             return [(sanitized_title, resource_link)]
         child_titles = []
@@ -765,7 +764,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Search recursively in the extracted folder for a given file. Path of the first
         found file will be returned. Raise a ScormError if file cannot be found.
         """
-        path = self.get_file_path(filename, self.extract_folder_path)
+        path = self.get_file_path(filename, self.extract_folder_path) or self.get_file_path(filename, self.extract_folder_base_path)
         if path is None:
             raise ScormError(f"Invalid package: could not find '{filename}' file")
         return path
