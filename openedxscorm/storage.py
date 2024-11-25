@@ -25,31 +25,6 @@ class S3ScormStorage(S3Boto3Storage):
             querystring_expire=querystring_expire,
         )
 
-    def url(self, name, parameters=None, expire=None):
-        """
-        Override url method of S3Boto3Storage
-        """
-        if not self.querystring_auth:
-            # No need to use assets proxy when authentication is disabled
-            return super().url(name, parameters=parameters, expire=expire)
-
-        if name.startswith(self.xblock.extract_folder_path):
-            # Proxy assets serving through the `assets_proxy` view. This case should
-            # only ever happen when we attempt to serve the index page from the
-            # index_page_url method.
-            proxy_base_url = self.xblock.runtime.handler_url(
-                self.xblock, "assets_proxy"
-            ).rstrip("?/")
-            # Note that we serve the index page here.
-            return f"{proxy_base_url}/{self.xblock.index_page_path}"
-
-        # This branch is executed when the `url` method is called from `assets_proxy`
-        return super().url(
-            os.path.join(self.xblock.extract_folder_path, name),
-            parameters=parameters,
-            expire=expire,
-        )
-
 
 def s3(xblock):
     """
