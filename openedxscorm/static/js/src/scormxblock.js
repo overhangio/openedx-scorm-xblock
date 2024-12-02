@@ -54,12 +54,16 @@ function ScormXBlock(runtime, element, settings) {
     function onFullscreenChange(e) {
         if (isFullscreen()) {
             $(e.target).addClass("fullscreen-enabled");
+            if (settings.block_height > screen.height) {
+                $(e.target).css("height", screen.height);
+            }
         } else {
             $(e.target).removeClass("fullscreen-enabled");
+            $(e.target).css("height", settings.block_height);
         }
         // This is required to trigger the actual content resize in some packages
         window.dispatchEvent(new Event('resize'));
-    }
+}
 
     // Popup window
     function initPopupWindow() {
