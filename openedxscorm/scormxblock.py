@@ -242,6 +242,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                 "popup_width": self.width or 800,
                 "popup_height": self.height or 800,
                 "scorm_data": self.scorm_data,
+                "block_height": self.height or 450,
             },
         )
         return frag
