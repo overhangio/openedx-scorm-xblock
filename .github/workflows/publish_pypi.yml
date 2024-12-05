@@ -10,9 +10,10 @@ jobs:
    push:
      runs-on: ubuntu-latest
      environment:
-      name: pypi
-      url: https://pypi.org/project/openedx-scorm-xblock
-
+       name: pypi
+       url: https://pypi.org/project/openedx-scorm-xblock
+     permissions:
+       id-token: write
      steps:
        - name: Checkout
          uses: actions/checkout@v4
