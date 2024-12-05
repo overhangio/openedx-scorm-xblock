@@ -206,7 +206,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     @staticmethod
     def resource_string(path):
         """Handy helper for getting static resources from our kit."""
-        data = importlib_resources.files(__name__).joinpath(path).read_bytes()
+        try:
+            data = importlib_resources.files(__name__).joinpath(path).read_bytes()
+        except TypeError:
+            data = importlib_resources.files(__package__).joinpath(path).read_bytes()
         return data.decode("utf8")
 
     def author_view(self, context=None):
