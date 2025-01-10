@@ -484,8 +484,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         return os.path.join(self.scorm_location(), self.location.block_id)
 
     def get_mode(self, data):
-        if "preview" in data["url"]:
-            return "review"
+        # TODO: Replace studio with authoring once the pages have been 
+        # fully transferred to the authoring MFE
+        if "preview" in data["url"] or "studio" in data["url"]:
+            return "browse"
         return "normal"
 
     @XBlock.json_handler
