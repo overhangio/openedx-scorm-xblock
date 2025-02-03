@@ -57,9 +57,15 @@ function ScormXBlock(runtime, element, settings) {
             if (settings.block_height > screen.height) {
                 $(e.target).css("height", screen.height);
             }
+            // Override height and cover entire display in fullscreen
+            $(e.target).find(".scorm-panel").css("height", "100%");
+            $(e.target).find(".scorm-pane").css("height", "100%");
         } else {
             $(e.target).removeClass("fullscreen-enabled");
-            $(e.target).css("height", settings.block_height);
+            // Revert back to custom height on fullscreen exit
+            $(e.target).removeAttr("style");
+            $(e.target).find(".scorm-panel").removeAttr("style");
+            $(e.target).find(".scorm-pane").css("height", settings.block_height);
         }
         // This is required to trigger the actual content resize in some packages
         window.dispatchEvent(new Event('resize'));
