@@ -383,14 +383,20 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def index_page_url(self):
         if not self.package_meta or not self.index_page_path:
             return ""
+        
+        if not self.xblock_settings.get("DEFAULT_STORAGE_URL", False):
+            return f"{self.proxy_base_url}/{self.index_page_path}"
+        
+        folder = self.extract_folder_path
         if self.storage.exists(
             os.path.join(self.extract_folder_base_path, self.clean_path(self.index_page_path))
         ):
             # For backward-compatibility, we must handle the case when the xblock data
             # is stored in the base folder.
-            logger.warning("Serving SCORM content from old-style path: %s", self.extract_folder_base_path)
+            folder = self.extract_folder_base_path
+            logger.warning("Serving SCORM content from old-style path: %s", folder)
 
-        return f"{self.proxy_base_url}/{self.index_page_path}"
+        return self.storage.url(os.path.join(folder, self.index_page_path))
 
     @property
     def proxy_base_url(self):

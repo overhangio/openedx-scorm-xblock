@@ -106,6 +106,19 @@ This should be added both to the LMS and the CMS settings. Instead of a function
 
 Note that the SCORM XBlock comes with extended S3 storage support out of the box. See the following section:
 
+Default storage URL
+~~~~~~~~~~~~~~~~~~
+
+By default, scorm will proxy assets through the LMS. This is done for security and to make the backend generic enough to be used with different storage backends. However, to utilize the default storage defined url, add the following to the ScormXBlock settings::
+
+.. code-block:: python
+
+    XBLOCK_SETTINGS["ScormXBlock"] = {
+        "DEFAULT_STORAGE_URL": True,
+    }    
+
+Scorm will now use the configured storages default `url` method instead of proxying the data through the LMS. The url method must be defined on the configured storage class for this work.
+
 S3 storage
 ~~~~~~~~~~
 
