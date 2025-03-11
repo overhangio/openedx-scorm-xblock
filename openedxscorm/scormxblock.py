@@ -55,43 +55,6 @@ OS_PATH_ALT_SEP = '\\'
 @XBlock.wants("settings")
 @XBlock.wants("user")
 class ScormXBlock(XBlock, CompletableXBlockMixin):
-    """
-    When a user uploads a Scorm package, the zip file is stored in:
-
-        media/{org}/{course}/{block_type}/{block_id}/{sha1}{ext}
-
-    This zip file is then extracted to the media/{scorm_location}/{block_id}.
-
-    The scorm location is defined by the LOCATION xblock setting. If undefined, this is
-    "scorm". This setting can be set e.g:
-
-        XBLOCK_SETTINGS["ScormXBlock"] = {
-            "LOCATION": "alternatevalue",
-        }
-
-    Note that neither the folder the folder nor the package file are deleted when the
-    xblock is removed.
-
-    By default, static assets are stored in the default Django storage backend. To
-    override this behaviour, you should define a custom storage function. This
-    function must take the xblock instance as its first and only argument. For instance,
-    you can store assets in different directories depending on the XBlock organization with::
-
-        def scorm_storage(xblock):
-            from django.conf import settings
-            from django.core.files.storage import FileSystemStorage
-            from openedx.core.djangoapps.site_configuration.models import SiteConfiguration
-
-            subfolder = SiteConfiguration.get_value_for_org(
-                xblock.location.org, "SCORM_STORAGE_NAME", "default"
-            )
-            storage_location = os.path.join(settings.MEDIA_ROOT, subfolder)
-            return get_storage_class(settings.DEFAULT_FILE_STORAGE)(location=storage_location)
-
-        XBLOCK_SETTINGS["ScormXBlock"] = {
-            "STORAGE_FUNC": scorm_storage,
-        }
-    """
 
     display_name = String(
         display_name=_("Display Name"),
@@ -420,14 +383,21 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def index_page_url(self):
         if not self.package_meta or not self.index_page_path:
             return ""
+        
+        # Serve assets by proxying them through the LMS by default
+        if self.xblock_settings.get("PROXY_ASSETS_LMS", True):
+            return f"{self.proxy_base_url}/{self.index_page_path}"
+        
+        folder = self.extract_folder_path
         if self.storage.exists(
             os.path.join(self.extract_folder_base_path, self.clean_path(self.index_page_path))
         ):
             # For backward-compatibility, we must handle the case when the xblock data
             # is stored in the base folder.
-            logger.warning("Serving SCORM content from old-style path: %s", self.extract_folder_base_path)
+            folder = self.extract_folder_base_path
+            logger.warning("Serving SCORM content from old-style path: %s", folder)
 
-        return f"{self.proxy_base_url}/{self.index_page_path}"
+        return self.storage.url(os.path.join(folder, self.index_page_path))
 
     @property
     def proxy_base_url(self):
