@@ -384,7 +384,8 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         if not self.package_meta or not self.index_page_path:
             return ""
         
-        if not self.xblock_settings.get("DEFAULT_STORAGE_URL", False):
+        # Serve assets by proxying them through the LMS by default
+        if self.xblock_settings.get("PROXY_ASSETS_LMS", True):
             return f"{self.proxy_base_url}/{self.index_page_path}"
         
         folder = self.extract_folder_path
