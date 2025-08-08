@@ -167,6 +167,38 @@ Troubleshooting
 
 This XBlock is maintained by Zia Fazal from `Edly <https://edly.io>`__. Community support is available from the official `Open edX forum <https://discuss.openedx.org>`__. Do you need help with this plugin? See the `troubleshooting <https://docs.tutor.overhang.io/troubleshooting.html>`__ section from the Tutor documentation.
 
+Contributing
+------------
+
+We welcome contributions to this repo! Here are the guidelines for contributing:
+
+Pull Requests
+~~~~~~~~~~~~~
+
+For changes to the SCORM XBlock, open a pull request on this repository. Take care to target your pull request to the proper branch:
+
+* **Target master** if your change is compatible with the latest official Open edX release and it carries no major backwards-incompatibility nor risk of regression. This ensures that the latest stable release benefits from bug fixes and incremental improvements. Once merged, your change will automatically be forward-ported to nightly.
+
+* **Target nightly** if your change is only compatible with Open edX's master branches and/or your change would be disruptive to production site operators. If merged, your change will be incorporated into master at the time of the next named Open edX release.
+
+At the beginning of each Open edX named release testing period, we split off from nightly a special pending release branch (e.g., sumac or teak). If your change is necessary for that pending release, merge it to said branch. At the end of the testing period, the pending branch will be merged into master and deleted. As with any set of changes merged to master, they will then be forward-ported to nightly.
+
+Changelog Entry
+~~~~~~~~~~~~~~~
+
+Create a changelog entry for significant changes (excluding reformatting or documentation) by running::
+
+    make changelog-entry
+
+Edit the newly created file following the given formatting instructions.
+
+Commit Messages
+~~~~~~~~~~~~~~~
+
+Write clear Git commit titles and messages. Detail the rationale for your changes, the issue being addressed, and your solution. Include links to relevant forum discussions and describe your use case. Detailed explanations are valuable. For commit titles, follow conventional commits guidelines.
+
+Additionally, if your pull request addresses an existing GitHub issue, include 'Close #XXX' in your commit message, where XXX is the issue number.
+
 License
 -------
 
