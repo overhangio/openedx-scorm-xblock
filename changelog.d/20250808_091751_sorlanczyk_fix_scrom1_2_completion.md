@@ -1,1 +1,1 @@
-- [Bugfix] fixed logic bug in SCORM 1.2 completion handling, when `lesson_status` is `passed` or `failed` it will ensure course completion status. (by @so-jd)
+- [Bugfix] Set completion_status to completed when lesson_status is passed to ensure course completion status in SCORM 1.2. (by @so-jd)
