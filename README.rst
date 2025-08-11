@@ -190,7 +190,7 @@ Create a changelog entry for significant changes (excluding reformatting or docu
 
     make changelog-entry
 
-Edit the newly created file following the given formatting instructions.
+Edit the newly created file following the default formatting instructions in the generated file.
 
 Commit Messages
 ~~~~~~~~~~~~~~~
