@@ -1,0 +1,1 @@
+- [Bugfix] Set completion_status to completed when lesson_status is passed to ensure course completion status in SCORM 1.2. (by @so-jd)
