@@ -1,3 +1,4 @@
+import io
 import json
 import hashlib
 import os
@@ -230,8 +231,12 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         -------
         Response object containing the content of the requested file with the appropriate content type.
         """
+        # If this block was just imported via OLX, the unpacked files may be
+        # missing from default_storage. Rehydrate from the contentstore before
+        # serving. No-op when the feature is disabled or the tree exists.
+        self._rehydrate_from_contentstore()
         file_name = os.path.basename(suffix)
-        file_path = self.find_file_path(file_name)        
+        file_path = self.find_file_path(file_name)
         file_type, _ = mimetypes.guess_type(file_name)
         with self.storage.open(file_path) as response:
             file_content = response.read()
@@ -299,6 +304,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         try:
             self.extract_package(package_file)
             self.update_package_fields()
+            # Mirror the original zip into the course's contentstore so that
+            # OLX export bundles it and OLX import re-creates it under the new
+            # course_key. Best-effort and feature-flagged off by default.
+            self._save_zip_to_contentstore(package_file)
         except ScormError as e:
             response["errors"].append(e.args[0])
 
@@ -384,7 +393,12 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     def index_page_url(self):
         if not self.package_meta or not self.index_page_path:
             return ""
-        
+
+        # If this block was just imported via OLX, the unpacked files may be
+        # missing from default_storage. Rehydrate from the contentstore before
+        # building the URL. No-op when the feature is disabled or the tree exists.
+        self._rehydrate_from_contentstore()
+
         # Serve assets by proxying them through the LMS by default
         if self.xblock_settings.get("PROXY_ASSETS_LMS", True):
             return f"{self.proxy_base_url}/{self.index_page_path}"
@@ -883,6 +897,139 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
              """,
             ),
         ]
+
+    @property
+    def contentstore_sync_enabled(self):
+        """
+        Whether to mirror the SCORM zip to the course's contentstore on save and
+        rehydrate it from the contentstore on read.
+
+        Disabled by default; opt in by setting
+        XBLOCK_SETTINGS["ScormXBlock"]["CONTENTSTORE_SYNC_ENABLED"] = True.
+        """
+        return bool(self.xblock_settings.get("CONTENTSTORE_SYNC_ENABLED", False))
+
+    def _contentstore_asset_path(self):
+        """
+        Filename used when storing the SCORM zip in the course's contentstore.
+
+        The path is keyed by the package sha1 so that OLX export/import carries
+        the same asset name into the new course.
+        """
+        sha1 = self.package_meta.get("sha1") if self.package_meta else None
+        if not sha1:
+            return None
+        return f"scorm_packages/{sha1}.zip"
+
+    def _save_zip_to_contentstore(self, package_file):
+        """
+        Mirror the original SCORM zip into the course's contentstore.
+
+        Best-effort: any failure (missing imports, no course context, contentstore
+        error) is logged and swallowed so that the upload still succeeds.
+        """
+        if not self.contentstore_sync_enabled:
+            return
+        try:
+            from xmodule.contentstore.django import contentstore
+            from xmodule.contentstore.content import StaticContent
+        except ImportError:
+            logger.warning(
+                "xmodule.contentstore unavailable; skipping SCORM zip mirror"
+            )
+            return
+
+        course_key = getattr(self.runtime, "course_id", None)
+        asset_path = self._contentstore_asset_path()
+        if course_key is None or asset_path is None:
+            return
+
+        try:
+            asset_key = StaticContent.compute_location(course_key, asset_path)
+            package_file.seek(0)
+            data = package_file.read()
+            package_file.seek(0)
+            content = StaticContent(
+                asset_key,
+                asset_path,
+                "application/zip",
+                data,
+                locked=True,
+            )
+            contentstore().save(content)
+            logger.info("Mirrored SCORM zip to contentstore at %s", asset_key)
+        except Exception:
+            logger.exception("Failed to mirror SCORM zip to contentstore")
+
+    def _fetch_zip_from_contentstore(self):
+        """
+        Fetch the original SCORM zip bytes from the course's contentstore.
+
+        Returns the bytes payload, or None when the feature is disabled, the
+        contentstore is unavailable, or no asset is found for this block.
+        """
+        if not self.contentstore_sync_enabled:
+            return None
+        try:
+            from xmodule.contentstore.django import contentstore
+            from xmodule.contentstore.content import StaticContent
+        except ImportError:
+            return None
+        try:
+            from xmodule.exceptions import NotFoundError
+        except ImportError:
+            NotFoundError = None  # type: ignore
+
+        course_key = getattr(self.runtime, "course_id", None)
+        asset_path = self._contentstore_asset_path()
+        if course_key is None or asset_path is None:
+            return None
+
+        try:
+            asset_key = StaticContent.compute_location(course_key, asset_path)
+            content = contentstore().find(asset_key)
+            return content.data
+        except Exception as exc:
+            if NotFoundError is not None and isinstance(exc, NotFoundError):
+                return None
+            logger.exception("Failed to fetch SCORM zip from contentstore")
+            return None
+
+    def _is_extracted_tree_missing(self):
+        """
+        Return True when package_meta is set but the extracted tree is empty.
+
+        After OLX import the metadata is restored but the unpacked files are not,
+        so this is the signal to rehydrate from the contentstore.
+        """
+        if not self.package_meta:
+            return False
+        return not self.path_exists(self.extract_folder_path)
+
+    def _rehydrate_from_contentstore(self):
+        """
+        Re-extract the SCORM zip from the contentstore back into default_storage.
+
+        No-op unless the feature is enabled, package_meta is present, and the
+        extracted tree is missing. Returns True on a successful rehydration.
+        """
+        if not self.contentstore_sync_enabled:
+            return False
+        if not self._is_extracted_tree_missing():
+            return False
+        data = self._fetch_zip_from_contentstore()
+        if not data:
+            return False
+        try:
+            self.extract_package(io.BytesIO(data))
+            logger.info(
+                "Rehydrated SCORM package from contentstore for usage_id=%s",
+                self.scope_ids.usage_id,
+            )
+            return True
+        except Exception:
+            logger.exception("Failed to rehydrate SCORM package from contentstore")
+            return False
 
     @property
     def storage(self):

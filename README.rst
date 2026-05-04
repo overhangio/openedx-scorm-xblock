@@ -138,6 +138,26 @@ You may define the following additional settings in ``XBLOCK_SETTINGS["ScormXBlo
 * ``S3_QUERY_AUTH`` (default: ``True``): boolean flag (``True`` or ``False``) for query string authentication in S3 urls. If your bucket is public, set this value to ``False``. But be aware that in such case your SCORM assets will be publicly available to everyone.
 * ``S3_EXPIRES_IN`` (default: 604800): time duration (in seconds) for the presigned URLs to stay valid. The default is one week.
 
+Course export/import (contentstore sync)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, SCORM zips are unpacked into Django's ``default_storage``, which is separate from the contentstore that Open edX bundles into OLX export tarballs. As a consequence, when a course containing a SCORM block is exported and re-imported into a new course, the imported block keeps its metadata (filename, sha1, size) but the actual content does not play because the unpacked files are absent from the new course's storage.
+
+To survive course export/import, the XBlock can mirror the original SCORM zip into the course's contentstore on save and rehydrate the unpacked tree from the contentstore on first access after an import. Enable it with:
+
+.. code-block:: python
+
+    XBLOCK_SETTINGS["ScormXBlock"] = {
+        "CONTENTSTORE_SYNC_ENABLED": True,
+    }
+
+When enabled:
+
+* On upload, the original zip is written to the current course's contentstore as ``scorm_packages/<sha1>.zip`` (locked). Course export bundles contentstore assets into the OLX tarball; course import copies them under the new ``course_key`` automatically.
+* On read, if ``package_meta`` is set but the extracted tree is missing from ``default_storage``, the XBlock fetches the zip from the current course's contentstore and re-extracts it into ``default_storage``.
+
+This composes with the per-block extraction path introduced in PR #71 (extraction is still keyed by ``sha1(usage_key)``, so courses cannot share extraction directories). Pre-existing blocks already have a populated ``default_storage`` cache, so the rehydrate branch never fires for them. The feature is off by default; if anything misbehaves in your environment, flipping it back to ``False`` restores the prior behavior exactly.
+
 These settings may be added to Tutor by creating a `plugin <https://docs.tutor.overhang.io/plugins/>`__:
 
 .. code-block:: python
