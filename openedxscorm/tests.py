@@ -8,7 +8,7 @@ from freezegun import freeze_time
 import mock
 from xblock.field_data import DictFieldData
 
-from .scormxblock import ScormXBlock
+from .scormxblock import ScormError, ScormXBlock
 
 
 @ddt
@@ -24,6 +24,14 @@ class ScormXBlockTests(unittest.TestCase):
             block_id="block_id", org="org", course="course", block_type="block_type"
         )
         return block
+
+    @staticmethod
+    def make_storage_with_file(content=b"content"):
+        storage = mock.Mock()
+        opened_file = mock.MagicMock()
+        opened_file.__enter__.return_value.read.return_value = content
+        storage.open.return_value = opened_file
+        return storage
 
     def test_fields_xblock(self):
         block = self.make_one()
@@ -123,6 +131,94 @@ class ScormXBlockTests(unittest.TestCase):
         file_storage_path = block.package_path
 
         self.assertEqual(file_storage_path, "org/course/block_type/block_id/sha1.html")
+
+    @mock.patch.object(
+        ScormXBlock, "extract_folder_path", new_callable=mock.PropertyMock
+    )
+    def test_assets_proxy_serves_exact_requested_path(self, extract_folder_path):
+        block = self.make_one()
+        storage = self.make_storage_with_file(b"exact asset")
+        storage.exists.return_value = True
+        block._storage = storage
+        block.find_file_path = mock.Mock(return_value="scorm/block/sha1/other/app.js")
+        extract_folder_path.return_value = "scorm/block/sha1"
+
+        response = block.assets_proxy(mock.Mock(), "assets/app.js")
+
+        storage.exists.assert_called_once_with("scorm/block/sha1/assets/app.js")
+        block.find_file_path.assert_not_called()
+        storage.open.assert_called_once_with("scorm/block/sha1/assets/app.js")
+        self.assertEqual(response.body, b"exact asset")
+
+    @mock.patch.object(
+        ScormXBlock, "extract_folder_path", new_callable=mock.PropertyMock
+    )
+    def test_assets_proxy_fallback_uses_cleaned_basename(self, extract_folder_path):
+        block = self.make_one()
+        storage = self.make_storage_with_file()
+        storage.exists.return_value = False
+        block._storage = storage
+        block.find_file_path = mock.Mock(return_value="scorm/block/sha1/fallback/app.js")
+        extract_folder_path.return_value = "scorm/block/sha1"
+
+        block.assets_proxy(mock.Mock(), "assets/app.js?v=1")
+
+        storage.exists.assert_called_once_with("scorm/block/sha1/assets/app.js")
+        block.find_file_path.assert_called_once_with("app.js")
+        storage.open.assert_called_once_with("scorm/block/sha1/fallback/app.js")
+
+    @data(
+        "",
+        "?v=1",
+        ".",
+        "/app.js",
+        "%2Fapp.js",
+        "%5Capp.js",
+        r"C:\app.js",
+        "C%3A/app.js",
+        "../app.js",
+        "%2E%2E/app.js",
+        "assets/",
+        "assets/..",
+        "assets/%2E%2E/app.js",
+        "assets/../../app.js",
+        "assets/%2E%2E/%2E%2E/app.js",
+        r"assets\..\app.js",
+        "assets/%00/app.js",
+    )
+    def test_assets_proxy_rejects_invalid_requested_paths(self, suffix):
+        block = self.make_one()
+
+        response = block.assets_proxy(mock.Mock(), suffix)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content_type, "text/plain")
+        self.assertEqual(response.body, b"Invalid asset path")
+
+    @data(
+        "",
+        "?v=1",
+        ".",
+        "/app.js",
+        "%2Fapp.js",
+        "%5Capp.js",
+        r"C:\app.js",
+        "C%3A/app.js",
+        "../app.js",
+        "%2E%2E/app.js",
+        "assets/",
+        "assets/..",
+        "assets/%2E%2E/app.js",
+        "assets/../../app.js",
+        "assets/%2E%2E/%2E%2E/app.js",
+        r"assets\..\app.js",
+        "assets/%00/app.js",
+    )
+    def test_clean_asset_path_rejects_invalid_requested_paths(self, suffix):
+        block = self.make_one()
+
+        with self.assertRaises(ScormError):
+            block.clean_asset_path(suffix)
 
     @mock.patch(
         "openedxscorm.ScormXBlock._file_storage_path", return_value="file_storage_path"
