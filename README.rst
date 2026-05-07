@@ -155,6 +155,7 @@ When enabled:
 
 * On upload, the original zip is written to the current course's contentstore as ``scorm_packages/<sha1>.zip`` (locked). Course export bundles contentstore assets into the OLX tarball; course import copies them under the new ``course_key`` automatically.
 * On read, if ``package_meta`` is set but the extracted tree is missing from ``default_storage``, the XBlock fetches the zip from the current course's contentstore and re-extracts it into ``default_storage``.
+* Each upload also sweeps the course for ``scorm_packages/<sha1>.zip`` assets that no SCORM block on either the draft or the published branch references, and deletes them. The current upload's sha1 is always pinned into the reference set, so the just-saved zip is never touched. Cleanup is best-effort and silent: if the modulestore or contentstore call fails, the asset is left in place and the upload still succeeds.
 
 This composes with the per-block extraction path introduced in PR #71 (extraction is still keyed by ``sha1(usage_key)``, so courses cannot share extraction directories). Pre-existing blocks already have a populated ``default_storage`` cache, so the rehydrate branch never fires for them. The feature is off by default; if anything misbehaves in your environment, flipping it back to ``False`` restores the prior behavior exactly.
 

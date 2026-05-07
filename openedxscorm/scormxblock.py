@@ -308,6 +308,10 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             # OLX export bundles it and OLX import re-creates it under the new
             # course_key. Best-effort and feature-flagged off by default.
             self._save_zip_to_contentstore(package_file)
+            # Reap any scorm_packages/*.zip in this course's contentstore that
+            # no draft or published SCORM block still references. Keeps the
+            # mirror from accumulating stale uploads over time.
+            self._gc_unreferenced_contentstore_zips()
         except ScormError as e:
             response["errors"].append(e.args[0])
 
@@ -994,6 +998,112 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                 return None
             logger.exception("Failed to fetch SCORM zip from contentstore")
             return None
+
+    _SCORM_ASSET_PATTERN = re.compile(r"^scorm_packages[/_]([0-9a-fA-F]{40})\.zip$")
+
+    def _gc_unreferenced_contentstore_zips(self):
+        """
+        Delete scorm_packages/<sha1>.zip assets in this course's contentstore
+        that no SCORM block still references in either the draft or the
+        published branch.
+
+        Runs at the tail of studio_submit so cleanup happens organically as
+        authors edit, with no operator action required. The current upload's
+        sha1 is always pinned into the reference set, even if the new
+        package_meta has not yet been persisted by the modulestore. Best-
+        effort: every failure is swallowed so the upload still succeeds.
+        """
+        if not self.contentstore_sync_enabled:
+            return
+        try:
+            from xmodule.contentstore.django import contentstore
+            from xmodule.contentstore.content import StaticContent
+            from xmodule.modulestore import ModuleStoreEnum
+            from xmodule.modulestore.django import modulestore
+        except ImportError:
+            return
+
+        course_key = getattr(self.runtime, "course_id", None)
+        if course_key is None:
+            return
+
+        try:
+            cs = contentstore()
+            referenced = self._collect_course_scorm_sha1s(
+                modulestore(), course_key, ModuleStoreEnum
+            )
+            current = (self.package_meta or {}).get("sha1")
+            if current:
+                referenced.add(current.lower())
+
+            asset_docs, _ = cs.get_all_content_for_course(course_key)
+            for doc in asset_docs:
+                sha1 = self._scorm_sha1_from_asset_doc(doc)
+                if sha1 is None or sha1 in referenced:
+                    continue
+                asset_key = StaticContent.compute_location(
+                    course_key, f"scorm_packages/{sha1}.zip"
+                )
+                try:
+                    cs.delete(asset_key)
+                    logger.info(
+                        "Deleted unreferenced SCORM zip %s from contentstore",
+                        asset_key,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to delete unreferenced SCORM zip %s", asset_key
+                    )
+        except Exception:
+            logger.exception(
+                "SCORM contentstore GC failed; leaving assets in place"
+            )
+
+    @staticmethod
+    def _collect_course_scorm_sha1s(store, course_key, ModuleStoreEnum):
+        referenced = set()
+        for revision in (
+            ModuleStoreEnum.RevisionOption.published_only,
+            ModuleStoreEnum.RevisionOption.draft_only,
+        ):
+            try:
+                blocks = store.get_items(
+                    course_key,
+                    qualifiers={"category": "scorm"},
+                    revision=revision,
+                )
+            except TypeError:
+                blocks = store.get_items(
+                    course_key, qualifiers={"category": "scorm"}
+                )
+            for block in blocks:
+                meta = getattr(block, "package_meta", None) or {}
+                sha1 = meta.get("sha1")
+                if sha1:
+                    referenced.add(sha1.lower())
+        return referenced
+
+    @classmethod
+    def _scorm_sha1_from_asset_doc(cls, doc):
+        candidates = []
+        if isinstance(doc, dict):
+            asset_id = doc.get("_id")
+            if isinstance(asset_id, dict):
+                candidates.append(asset_id.get("name", "") or "")
+            elif asset_id is not None:
+                candidates.append(getattr(asset_id, "block_id", "") or "")
+                candidates.append(getattr(asset_id, "path", "") or "")
+            candidates.append(doc.get("displayname", "") or "")
+        else:
+            candidates.append(getattr(doc, "name", "") or "")
+            candidates.append(getattr(doc, "block_id", "") or "")
+        for name in candidates:
+            if not name:
+                continue
+            match = cls._SCORM_ASSET_PATTERN.match(name)
+            if match:
+                return match.group(1).lower()
+        return None
 
     def _is_extracted_tree_missing(self):
         """
