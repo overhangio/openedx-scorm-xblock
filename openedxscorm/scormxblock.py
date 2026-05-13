@@ -231,10 +231,6 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         -------
         Response object containing the content of the requested file with the appropriate content type.
         """
-        # If this block was just imported via OLX, the unpacked files may be
-        # missing from default_storage. Rehydrate from the contentstore before
-        # serving. No-op when the feature is disabled or the tree exists.
-        self._rehydrate_from_contentstore()
         file_name = os.path.basename(suffix)
         file_path = self.find_file_path(file_name)
         file_type, _ = mimetypes.guess_type(file_name)
@@ -911,7 +907,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Disabled by default; opt in by setting
         XBLOCK_SETTINGS["ScormXBlock"]["CONTENTSTORE_SYNC_ENABLED"] = True.
         """
-        return bool(self.xblock_settings.get("CONTENTSTORE_SYNC_ENABLED", False))
+        return self.xblock_settings.get("CONTENTSTORE_SYNC_ENABLED", False)
 
     def _contentstore_asset_path(self):
         """
@@ -929,8 +925,6 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         """
         Mirror the original SCORM zip into the course's contentstore.
 
-        Best-effort: any failure (missing imports, no course context, contentstore
-        error) is logged and swallowed so that the upload still succeeds.
         """
         if not self.contentstore_sync_enabled:
             return
@@ -993,9 +987,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             asset_key = StaticContent.compute_location(course_key, asset_path)
             content = contentstore().find(asset_key)
             return content.data
-        except Exception as exc:
-            if NotFoundError is not None and isinstance(exc, NotFoundError):
-                return None
+        except NotFoundError:
+            return None
+        except Exception:
             logger.exception("Failed to fetch SCORM zip from contentstore")
             return None
 

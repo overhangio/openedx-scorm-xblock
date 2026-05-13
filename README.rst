@@ -141,9 +141,14 @@ You may define the following additional settings in ``XBLOCK_SETTINGS["ScormXBlo
 Course export/import (contentstore sync)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-By default, SCORM zips are unpacked into Django's ``default_storage``, which is separate from the contentstore that Open edX bundles into OLX export tarballs. As a consequence, when a course containing a SCORM block is exported and re-imported into a new course, the imported block keeps its metadata (filename, sha1, size) but the actual content does not play because the unpacked files are absent from the new course's storage.
+By default, SCORM zips are unpacked into Django's ``default_storage``, which
+is not bundled into OLX export tarballs. A course exported and re-imported
+into a new course keeps the SCORM block's metadata but cannot play the
+package, because the unpacked files are absent from the new course's storage.
 
-To survive course export/import, the XBlock can mirror the original SCORM zip into the course's contentstore on save and rehydrate the unpacked tree from the contentstore on first access after an import. Enable it with:
+To make blocks survive OLX export/import, the XBlock can mirror each uploaded
+zip into the course's contentstore (which IS bundled into OLX exports) and
+re-extract it from there on first access after an import. Enable it with:
 
 .. code-block:: python
 
@@ -151,16 +156,9 @@ To survive course export/import, the XBlock can mirror the original SCORM zip in
         "CONTENTSTORE_SYNC_ENABLED": True,
     }
 
-When enabled:
-
-* On upload, the original zip is written to the current course's contentstore as ``scorm_packages/<sha1>.zip`` (locked). Course export bundles contentstore assets into the OLX tarball; course import copies them under the new ``course_key`` automatically.
-* On read, if ``package_meta`` is set but the extracted tree is missing from ``default_storage``, the XBlock fetches the zip from the current course's contentstore and re-extracts it into ``default_storage``.
-* Each upload also sweeps the course for ``scorm_packages/<sha1>.zip`` assets that no SCORM block on either the draft or the published branch references, and deletes them. The current upload's sha1 is always pinned into the reference set, so the just-saved zip is never touched. Cleanup is best-effort and silent: if the modulestore or contentstore call fails, the asset is left in place and the upload still succeeds.
-
-This composes with the per-block extraction path introduced in PR #71 (extraction is still keyed by ``sha1(usage_key)``, so courses cannot share extraction directories). Pre-existing blocks already have a populated ``default_storage`` cache, so the rehydrate branch never fires for them. The feature is off by default; if anything misbehaves in your environment, flipping it back to ``False`` restores the prior behavior exactly.
-
-These settings may be added to Tutor by creating a `plugin <https://docs.tutor.overhang.io/plugins/>`__:
-
+The feature is off by default because it touches an external system
+(contentstore) on every SCORM upload and read; flipping it back to ``False``
+restores the prior behavior exactly.
 .. code-block:: python
 
     from tutor import hooks
