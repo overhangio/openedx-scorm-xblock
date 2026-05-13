@@ -1008,10 +1008,14 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         published branch.
 
         Runs at the tail of studio_submit so cleanup happens organically as
-        authors edit, with no operator action required. The current upload's
-        sha1 is always pinned into the reference set, even if the new
-        package_meta has not yet been persisted by the modulestore. Best-
-        effort: every failure is swallowed so the upload still succeeds.
+        authors edit, with no operator action required. The in-memory
+        package_meta of the block being edited is supplied as a draft-branch
+        override to _collect_course_scorm_sha1s, so the previous (stale)
+        draft sha1 is not kept alive in the reference set. Effect: per block
+        the contentstore retains at most one published zip and one draft zip
+        — repeated draft uploads on the same block reclaim the older zips
+        instead of accumulating them. Best-effort: every failure is
+        swallowed so the upload still succeeds.
         """
         if not self.contentstore_sync_enabled:
             return
@@ -1029,10 +1033,14 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
         try:
             cs = contentstore()
-            referenced = self._collect_course_scorm_sha1s(
-                modulestore(), course_key, ModuleStoreEnum
-            )
             current = (self.package_meta or {}).get("sha1")
+            referenced = self._collect_course_scorm_sha1s(
+                modulestore(),
+                course_key,
+                ModuleStoreEnum,
+                override_usage_id=self.scope_ids.usage_id,
+                override_draft_sha1=current,
+            )
             if current:
                 referenced.add(current.lower())
 
@@ -1060,11 +1068,24 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
             )
 
     @staticmethod
-    def _collect_course_scorm_sha1s(store, course_key, ModuleStoreEnum):
+    def _collect_course_scorm_sha1s(
+        store,
+        course_key,
+        ModuleStoreEnum,
+        override_usage_id=None,
+        override_draft_sha1=None,
+    ):
+        # When called from inside studio_submit, the new package_meta is still
+        # in memory on the calling block — the modulestore copy is from the
+        # previous upload. Substitute the in-memory draft sha1 for that block
+        # so the stale value doesn't keep its now-orphan zip alive.
         referenced = set()
-        for revision in (
-            ModuleStoreEnum.RevisionOption.published_only,
-            ModuleStoreEnum.RevisionOption.draft_only,
+        override_usage_id_str = (
+            str(override_usage_id) if override_usage_id is not None else None
+        )
+        for revision_name, revision in (
+            ("published", ModuleStoreEnum.RevisionOption.published_only),
+            ("draft", ModuleStoreEnum.RevisionOption.draft_only),
         ):
             try:
                 blocks = store.get_items(
@@ -1077,8 +1098,16 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                     course_key, qualifiers={"category": "scorm"}
                 )
             for block in blocks:
-                meta = getattr(block, "package_meta", None) or {}
-                sha1 = meta.get("sha1")
+                if (
+                    revision_name == "draft"
+                    and override_usage_id_str is not None
+                    and override_draft_sha1
+                    and str(getattr(block.scope_ids, "usage_id", "")) == override_usage_id_str
+                ):
+                    sha1 = override_draft_sha1
+                else:
+                    meta = getattr(block, "package_meta", None) or {}
+                    sha1 = meta.get("sha1")
                 if sha1:
                     referenced.add(sha1.lower())
         return referenced
