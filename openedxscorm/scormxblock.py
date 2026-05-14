@@ -22,6 +22,11 @@ from xblock.core import XBlock
 from xblock.completable import CompletableXBlockMixin
 from xblock.exceptions import JsonHandlerError
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
+from xmodule.contentstore.content import StaticContent
+from xmodule.contentstore.django import contentstore
+from xmodule.exceptions import NotFoundError
+from xmodule.modulestore import ModuleStoreEnum
+from xmodule.modulestore.django import modulestore
 
 try:
     # Older Open edX releases (Redwood and earlier) install a backported version of
@@ -928,14 +933,6 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         """
         if not self.contentstore_sync_enabled:
             return
-        try:
-            from xmodule.contentstore.django import contentstore
-            from xmodule.contentstore.content import StaticContent
-        except ImportError:
-            logger.warning(
-                "xmodule.contentstore unavailable; skipping SCORM zip mirror"
-            )
-            return
 
         course_key = getattr(self.runtime, "course_id", None)
         asset_path = self._contentstore_asset_path()
@@ -963,20 +960,11 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         """
         Fetch the original SCORM zip bytes from the course's contentstore.
 
-        Returns the bytes payload, or None when the feature is disabled, the
-        contentstore is unavailable, or no asset is found for this block.
+        Returns the bytes payload, or None when the feature is disabled or no
+        asset is found for this block.
         """
         if not self.contentstore_sync_enabled:
             return None
-        try:
-            from xmodule.contentstore.django import contentstore
-            from xmodule.contentstore.content import StaticContent
-        except ImportError:
-            return None
-        try:
-            from xmodule.exceptions import NotFoundError
-        except ImportError:
-            NotFoundError = None  # type: ignore
 
         course_key = getattr(self.runtime, "course_id", None)
         asset_path = self._contentstore_asset_path()
@@ -992,8 +980,6 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         except Exception:
             logger.exception("Failed to fetch SCORM zip from contentstore")
             return None
-
-    _SCORM_ASSET_PATTERN = re.compile(r"^scorm_packages[/_]([0-9a-fA-F]{40})\.zip$")
 
     def _gc_unreferenced_contentstore_zips(self):
         """
@@ -1012,13 +998,6 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         swallowed so the upload still succeeds.
         """
         if not self.contentstore_sync_enabled:
-            return
-        try:
-            from xmodule.contentstore.django import contentstore
-            from xmodule.contentstore.content import StaticContent
-            from xmodule.modulestore import ModuleStoreEnum
-            from xmodule.modulestore.django import modulestore
-        except ImportError:
             return
 
         course_key = getattr(self.runtime, "course_id", None)
@@ -1106,8 +1085,9 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                     referenced.add(sha1.lower())
         return referenced
 
-    @classmethod
-    def _scorm_sha1_from_asset_doc(cls, doc):
+    @staticmethod
+    def _scorm_sha1_from_asset_doc(doc):
+        pattern = re.compile(r"^scorm_packages[/_]([0-9a-fA-F]{40})\.zip$")
         candidates = []
         if isinstance(doc, dict):
             asset_id = doc.get("_id")
@@ -1123,7 +1103,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         for name in candidates:
             if not name:
                 continue
-            match = cls._SCORM_ASSET_PATTERN.match(name)
+            match = pattern.match(name)
             if match:
                 return match.group(1).lower()
         return None
