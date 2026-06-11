@@ -167,6 +167,11 @@ Troubleshooting
 
 This XBlock is maintained by Syed Ali Abbas from `Edly <https://edly.io>`__. Community support is available from the official `Open edX forum <https://discuss.openedx.org>`__. Do you need help with this plugin? See the `troubleshooting <https://docs.tutor.overhang.io/troubleshooting.html>`__ section from the Tutor documentation.
 
+Versioning
+----------
+
+This XBlock follows an independent ``MAJOR.MINOR.PATCH`` versioning scheme and is **not** tied to the Open edX or Tutor release version. While earlier releases tracked the Tutor version, this package is a standalone XBlock with no dependency on Tutor. To avoid downgrading the already-published version, ``19`` is retained as the current major version, and the project is versioned independently from this release onward.
+
 Contributing
 ------------
 

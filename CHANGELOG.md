@@ -16,6 +16,13 @@ instructions, because git commits are used to generate release notes:
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-19.0.4'></a>
+## v19.0.4 (2026-06-11)
+
+- [Bugfix] SCORM blocks now survive OLX export/import and course rerun. Export bundles the package zip into the OLX tarball; import re-extracts it under the target course's storage path; rerun and previously broken blocks self-heal on first render by locating a sibling storage bucket with the same SHA1. (by @Syed-Ali-Abbas-568)
+
+- 💥[Improvement] Decouple the XBlock version from the Open edX/Tutor release version. The package now follows an independent `MAJOR.MINOR.PATCH` scheme; `19` is retained as the major version to avoid downgrading already-published releases, and subsequent versions no longer correspond to Open edX/Tutor versions. (by @Syed-Ali-Abbas-568)
+
 <a id='changelog-19.0.3'></a>
 ## v19.0.3 (2025-10-27)
 
