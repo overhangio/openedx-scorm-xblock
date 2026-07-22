@@ -231,8 +231,20 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         -------
         Response object containing the content of the requested file with the appropriate content type.
         """
-        file_name = os.path.basename(suffix)
-        file_path = self.find_file_path(file_name)
+        try:
+            clean_suffix = self.clean_asset_path(suffix)
+        except ScormError:
+            logger.error("Invalid asset path: %r", suffix)
+            return Response("Invalid asset path", status=400, content_type="text/plain")
+        file_name = os.path.basename(clean_suffix)
+        requested_path = os.path.join(self.extract_folder_path, clean_suffix)
+        if self.storage.exists(requested_path):
+            file_path = requested_path
+        else:
+            # Preserve legacy basename lookup for packages or callers that do
+            # not request the extracted relative path. Exact-path lookup above
+            # avoids this fallback for normal requests with duplicate basenames.
+            file_path = self.find_file_path(file_name)
         file_type, _ = mimetypes.guess_type(file_name)
         with self.storage.open(file_path) as response:
             file_content = response.read()
@@ -619,6 +631,32 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Removes query string from a path
         """
         return path.split('?')[0] if path else path
+
+    def clean_asset_path(self, path):
+        """
+        Clean and validate an asset path requested through the proxy.
+        Asset paths must be relative paths that stay within the extracted
+        package folder. Absolute paths, drive-letter paths, parent-directory
+        traversal, and null bytes are rejected.
+        """
+        cleaned = urllib.parse.unquote(self.clean_path(path))
+        if not cleaned:
+            raise ScormError(f"Invalid asset path (empty): {path!r}")
+        if "\x00" in cleaned:
+            raise ScormError(f"Invalid asset path (null byte): {path!r}")
+        if cleaned.endswith(("/", OS_PATH_ALT_SEP)):
+            raise ScormError(f"Invalid asset path (directory, not a file): {path!r}")
+
+        normalized_separators_path = cleaned.replace(OS_PATH_ALT_SEP, os.path.sep)
+        path_parts = normalized_separators_path.split(os.path.sep)
+        cleaned = os.path.normpath(normalized_separators_path)
+
+        if os.path.isabs(cleaned) or re.match(r"^[A-Za-z]:", cleaned):
+            raise ScormError(f"Invalid asset path (must be relative): {path!r}")
+        if cleaned == os.curdir or os.pardir in path_parts:
+            raise ScormError(f"Invalid asset path (path traversal): {path!r}")
+
+        return cleaned
     
     def path_exists(self, path):
         """
