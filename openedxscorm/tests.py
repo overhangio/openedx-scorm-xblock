@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+import io
 import json
 import unittest
+import zipfile
 
 
 from ddt import ddt, data
@@ -8,7 +10,14 @@ from freezegun import freeze_time
 import mock
 from xblock.field_data import DictFieldData
 
-from .scormxblock import ScormError, ScormXBlock
+from .scormxblock import (
+    MAX_SCANNED_SIZE,
+    PACKAGE_WARNING_MESSAGES,
+    WARNING_NO_COMPLETION_STATUS,
+    PackageScan,
+    ScormError,
+    ScormXBlock,
+)
 
 
 @ddt
@@ -350,6 +359,265 @@ class ScormXBlockTests(unittest.TestCase):
         )
 
         self.assertEqual(response.json, {"value": 20})
+
+    @staticmethod
+    def make_package_zip(files):
+        """
+        Creates an in-memory SCORM package containing the given
+        {file name: contents} mapping.
+        """
+        package_file = io.BytesIO()
+        with zipfile.ZipFile(package_file, "w") as package_zipfile:
+            for file_name, content in files.items():
+                package_zipfile.writestr(file_name, content)
+        package_file.seek(0)
+        return package_file
+
+    @data(
+        "cmi.core.lesson_status",  # Scorm 1.2
+        "cmi.completion_status",  # Scorm 2004
+        "lesson_status",  # minified driver assembling the "cmi." prefix
+    )
+    @mock.patch.object(
+        ScormXBlock,
+        "extract_folder_path",
+        new_callable=mock.PropertyMock,
+        return_value="scorm/block/sha1",
+    )
+    def test_extract_package_of_package_reporting_completion(
+        self, element, _extract_folder_path
+    ):
+        block = self.make_one()
+        block._storage = mock.Mock()
+
+        block.extract_package(
+            self.make_package_zip(
+                {
+                    "imsmanifest.xml": "<manifest/>",
+                    "js/driver.js": f"function report() {{ SetValue('{element}', 'completed'); }}",
+                }
+            )
+        )
+
+        self.assertEqual(block.package_warnings, [])
+
+    @mock.patch.object(
+        ScormXBlock,
+        "extract_folder_path",
+        new_callable=mock.PropertyMock,
+        return_value="scorm/block/sha1",
+    )
+    def test_extract_package_of_package_not_reporting_completion(
+        self, _extract_folder_path
+    ):
+        block = self.make_one()
+        block._storage = mock.Mock()
+
+        block.extract_package(
+            self.make_package_zip(
+                {
+                    "imsmanifest.xml": "<manifest/>",
+                    "index.html": "<html><script src='js/driver.js'></script></html>",
+                    "js/driver.js": "function report() { SetValue('cmi.score.raw', 42); }",
+                }
+            )
+        )
+
+        self.assertEqual(block.package_warnings, [WARNING_NO_COMPLETION_STATUS])
+        # The package must still be extracted in full
+        self.assertEqual(block._storage.save.call_count, 3)
+
+    @mock.patch.object(
+        ScormXBlock,
+        "extract_folder_path",
+        new_callable=mock.PropertyMock,
+        return_value="scorm/block/sha1",
+    )
+    def test_extract_package_does_not_scan_media_files(self, _extract_folder_path):
+        block = self.make_one()
+        block._storage = mock.Mock()
+
+        block.extract_package(
+            self.make_package_zip(
+                {
+                    "imsmanifest.xml": "<manifest/>",
+                    "lesson_status.mp4": "cmi.core.lesson_status",
+                }
+            )
+        )
+
+        self.assertEqual(block.package_warnings, [WARNING_NO_COMPLETION_STATUS])
+
+    @mock.patch.object(
+        ScormXBlock,
+        "extract_folder_path",
+        new_callable=mock.PropertyMock,
+        return_value="scorm/block/sha1",
+    )
+    def test_scan_extracted_package_of_package_reporting_completion(
+        self, _extract_folder_path
+    ):
+        block = self.make_one()
+        block._storage = self.make_storage_with_file(
+            b"LMSSetValue('cmi.core.lesson_status', 'completed');"
+        )
+        block._storage.listdir.return_value = (["js"], ["driver.js"])
+
+        self.assertEqual(block.scan_extracted_package(), [])
+        block._storage.open.assert_called_once_with("scorm/block/sha1/driver.js", "rb")
+
+    @mock.patch.object(
+        ScormXBlock,
+        "extract_folder_path",
+        new_callable=mock.PropertyMock,
+        return_value="scorm/block/sha1",
+    )
+    def test_scan_extracted_package_of_package_not_reporting_completion(
+        self, _extract_folder_path
+    ):
+        block = self.make_one()
+        block._storage = self.make_storage_with_file(b"LMSSetValue('cmi.score.raw', 42);")
+        block._storage.listdir.side_effect = [
+            (["js"], ["index.html"]),
+            ([], ["driver.js"]),
+        ]
+
+        self.assertEqual(
+            block.scan_extracted_package(), [WARNING_NO_COMPLETION_STATUS]
+        )
+        self.assertEqual(block._storage.open.call_count, 2)
+
+    @mock.patch.object(
+        ScormXBlock,
+        "extract_folder_path",
+        new_callable=mock.PropertyMock,
+        return_value="scorm/block/sha1",
+    )
+    def test_scan_extracted_package_of_missing_package(self, _extract_folder_path):
+        block = self.make_one()
+        block._storage = mock.Mock()
+        block._storage.listdir.side_effect = FileNotFoundError
+
+        # A package we could not read tells us nothing, so it must not be
+        # reported as a package that does not report completion.
+        self.assertEqual(block.scan_extracted_package(), [])
+
+    def test_get_package_warning_messages_without_package(self):
+        block = self.make_one()
+
+        self.assertEqual(block.get_package_warning_messages(), [])
+
+    def test_get_package_warning_messages_of_validated_package(self):
+        block = self.make_one(
+            package_meta={"sha1": "sha1"},
+            index_page_path="index.html",
+            package_warnings=[WARNING_NO_COMPLETION_STATUS],
+        )
+
+        self.assertEqual(
+            block.get_package_warning_messages(),
+            [PACKAGE_WARNING_MESSAGES[WARNING_NO_COMPLETION_STATUS]],
+        )
+
+    def test_get_package_warning_messages_of_valid_package(self):
+        block = self.make_one(
+            package_meta={"sha1": "sha1"},
+            index_page_path="index.html",
+            package_warnings=[],
+        )
+
+        self.assertEqual(block.get_package_warning_messages(), [])
+
+    @staticmethod
+    def patch_cache(cached_value=None):
+        """
+        Patches the Django cache with the returned mock. Note that the cache
+        cannot be patched by the usual `mock.patch(...)` decorator: creating the
+        replacement mock makes it inspect the real cache object, which fails
+        outside of a configured Django project.
+        """
+        cache = mock.Mock()
+        cache.get.return_value = cached_value
+        return mock.patch("openedxscorm.scormxblock.cache", cache), cache
+
+    def test_get_package_warning_messages_scans_unvalidated_package(self):
+        block = self.make_one(
+            package_meta={"sha1": "sha1"}, index_page_path="index.html"
+        )
+        block.scan_extracted_package = mock.Mock(
+            return_value=[WARNING_NO_COMPLETION_STATUS]
+        )
+        patched_cache, cache = self.patch_cache()
+
+        with patched_cache:
+            messages = block.get_package_warning_messages()
+
+        block.scan_extracted_package.assert_called_once_with()
+        cache.set.assert_called_once_with(
+            mock.ANY, [WARNING_NO_COMPLETION_STATUS], timeout=None
+        )
+        self.assertEqual(
+            messages, [PACKAGE_WARNING_MESSAGES[WARNING_NO_COMPLETION_STATUS]]
+        )
+
+    def test_get_package_warning_messages_of_cached_scan(self):
+        block = self.make_one(
+            package_meta={"sha1": "sha1"}, index_page_path="index.html"
+        )
+        block.scan_extracted_package = mock.Mock()
+        patched_cache, cache = self.patch_cache([WARNING_NO_COMPLETION_STATUS])
+
+        with patched_cache:
+            messages = block.get_package_warning_messages()
+
+        block.scan_extracted_package.assert_not_called()
+        cache.set.assert_not_called()
+        self.assertEqual(
+            messages, [PACKAGE_WARNING_MESSAGES[WARNING_NO_COMPLETION_STATUS]]
+        )
+
+    def test_get_package_warning_messages_of_failed_scan(self):
+        block = self.make_one(
+            package_meta={"sha1": "sha1"}, index_page_path="index.html"
+        )
+        block.scan_extracted_package = mock.Mock(side_effect=OSError)
+        patched_cache, cache = self.patch_cache()
+
+        with patched_cache:
+            self.assertEqual(block.get_package_warning_messages(), [])
+
+        cache.set.assert_not_called()
+
+    @data("driver.js", "index.html", "index.htm", "page.xhtml", "a.xml", "a.json", "a.txt")
+    def test_package_scan_wants_files_that_may_hold_scorm_api_calls(self, file_name):
+        self.assertTrue(PackageScan().wants(file_name))
+
+    @data("movie.mp4", "logo.png", "font.woff2", "style.css", "driver.js.map", "README")
+    def test_package_scan_skips_files_that_hold_no_scorm_api_calls(self, file_name):
+        self.assertFalse(PackageScan().wants(file_name))
+
+    def test_package_scan_of_empty_package_is_inconclusive(self):
+        scan = PackageScan()
+
+        self.assertFalse(scan.is_conclusive)
+        self.assertEqual(scan.warnings, [])
+
+    def test_package_scan_of_oversized_package_is_inconclusive(self):
+        scan = PackageScan()
+
+        scan.feed(b"x" * MAX_SCANNED_SIZE)
+
+        self.assertTrue(scan.is_done)
+        self.assertFalse(scan.wants("driver.js"))
+        self.assertEqual(scan.warnings, [])
+
+    def test_package_scan_keeps_a_match_found_in_an_earlier_file(self):
+        scan = PackageScan()
+
+        scan.feed(b"LMSSetValue('cmi.core.lesson_status', 'completed');")
+        scan.feed(b"LMSSetValue('cmi.core.score.raw', 42);")
+
+        self.assertEqual(scan.warnings, [])
 
     def test_scorm_data_has_user_info_in_student_view(self):
         block = self.make_one()
