@@ -33,6 +33,24 @@
     display: none;
 }
 
+/* Author-facing warnings about the uploaded package */
+.scorm-xblock .scorm-package-warnings {
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.5rem;
+    border-left: 4px solid #f0ad4e;
+    background-color: #fcf8e3;
+    color: #8a6d3b;
+}
+.scorm-xblock .scorm-package-warning {
+    margin: 0;
+}
+.scorm-xblock .scorm-package-warning + .scorm-package-warning {
+    margin-top: 0.5rem;
+}
+.scorm-xblock .scorm-package-warning .icon {
+    margin-right: 0.5rem;
+}
+
 .scorm-xblock .scorm-content .scorm-panel {
     display: flex;
     flex-direction: row;

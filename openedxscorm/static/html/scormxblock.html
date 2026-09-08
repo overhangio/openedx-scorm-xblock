@@ -1,6 +1,17 @@
 {% load i18n %}
 
 <div class="scorm-xblock {% if scorm_xblock.enable_navigation_menu %}navigation-enabled{% endif %}">
+  {% if package_warnings %}
+  <div class="scorm-package-warnings" role="alert">
+    {% for package_warning in package_warnings %}
+    <p class="scorm-package-warning">
+      <span class="icon fa fa-exclamation-triangle" aria-hidden="true"></span>
+      {% trans package_warning %}
+    </p>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {% if index_page_url %} {% if scorm_xblock.has_score %}
   <p>
     (<span class="grade">{{ grade|floatformat }}</span>/{{ scorm_xblock.weight|floatformat }} {% trans "points" %})
