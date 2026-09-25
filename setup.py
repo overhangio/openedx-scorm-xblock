@@ -1,7 +1,7 @@
 import io
 import os
 import re
-from setuptools import setup
+from setuptools import find_packages, setup
 
 
 def get_version(*file_paths):
@@ -57,9 +57,15 @@ setup(
         "Issue tracker": "https://github.com/overhangio/openedx-scorm-xblock/issues",
         "Community": "https://discuss.openedx.com",
     },
-    packages=["openedxscorm"],
+    packages=find_packages(include=["openedxscorm", "openedxscorm.*"]),
     python_requires=">=3.8",
     install_requires=["xblock", "web-fragments"],
+    extras_require={
+        # Optional: required only to transform the tracking events emitted by
+        # this XBlock into xAPI statements. Already a dependency of any platform
+        # that runs Aspects.
+        "xapi": ["edx-event-routing-backends"],
+    },
     entry_points={"xblock.v1": ["scorm = openedxscorm:ScormXBlock"]},
     package_data=package_data("openedxscorm", ["static", "public", "locale"]),
     license="AGPLv3",

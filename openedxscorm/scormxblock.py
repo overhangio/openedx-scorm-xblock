@@ -3,6 +3,7 @@ import hashlib
 import os
 import logging
 import re
+import time
 import xml.etree.ElementTree as ET
 import zipfile
 import mimetypes
@@ -22,6 +23,8 @@ from xblock.core import XBlock
 from xblock.completable import CompletableXBlockMixin
 from xblock.exceptions import JsonHandlerError
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
+
+from openedxscorm.tracking import ScormTrackingMixin
 
 try:
     # Older Open edX releases (Redwood and earlier) install a backported version of
@@ -55,7 +58,7 @@ OS_PATH_ALT_SEP = '\\'
 
 @XBlock.wants("settings")
 @XBlock.wants("user")
-class ScormXBlock(XBlock, CompletableXBlockMixin):
+class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
 
     display_name = String(
         display_name=_("Display Name"),
@@ -79,6 +82,11 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     success_status = String(scope=Scope.user_state, default="unknown")
 
     lesson_score = Float(scope=Scope.user_state, default=0)
+
+    # Unix timestamp of the last "LMSInitialize"/"Initialize" API call, used to
+    # measure the time spent by the learner in the SCORM package.
+    session_started_at = Float(scope=Scope.user_state, default=0)
+
     weight = Float(
         default=1,
         display_name=_("Weight"),
@@ -210,6 +218,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                 "popup_height": self.height or 800,
                 "scorm_data": self.scorm_data,
                 "block_height": self.height or 450,
+                "tracking_enabled": self.is_tracking_enabled,
             },
         )
         return frag
@@ -698,6 +707,40 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         return "normal"
 
     @XBlock.json_handler
+    def scorm_initialize(self, _data, _suffix):
+        """
+        Called when the package calls the "LMSInitialize"/"Initialize" API method.
+
+        This is the beginning of a SCORM session; it is tracked both to measure
+        the time spent in the package and to know that the learner actually
+        launched it.
+        """
+        if not self.is_tracking_enabled:
+            return {"result": "success"}
+        self.session_started_at = time.time()
+        self.track_scorm_session_start()
+        return {"result": "success"}
+
+    @XBlock.json_handler
+    def scorm_terminate(self, _data, _suffix):
+        """
+        Called when the package calls the "LMSFinish"/"Terminate" API method.
+
+        This is the end of a SCORM session. Note that packages are not required
+        to call this method, and that browsers may drop the request when the
+        learner closes the page, so the absence of this event does not mean that
+        the session is still running.
+        """
+        if not self.is_tracking_enabled:
+            return {"result": "success"}
+        duration = None
+        if self.session_started_at:
+            duration = max(time.time() - self.session_started_at, 0)
+            self.session_started_at = 0
+        self.track_scorm_session_end(duration=duration)
+        return {"result": "success"}
+
+    @XBlock.json_handler
     def scorm_get_value(self, data, _suffix):
         """
         Here we get only the get_value events that were not filtered by the LMSGetValue js function.
@@ -721,7 +764,14 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
     @XBlock.json_handler
     def scorm_set_values(self, data_list, _suffix):
-        return [self.set_value(data) for data in data_list]
+        # Packages usually write several elements at once ("cmi.score.raw" and
+        # "cmi.score.scaled", for instance): tracking events are collected for
+        # the whole batch, such that a single state change is tracked only once.
+        self.open_tracking_batch()
+        try:
+            return [self.set_value(data) for data in data_list]
+        finally:
+            self.close_tracking_batch()
 
     @XBlock.json_handler
     def scorm_set_value(self, data, _suffix):
@@ -780,6 +830,14 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         ):
             if self.has_score:
                 self.publish_grade()
+
+        self.track_set_value(
+            name,
+            value,
+            completion_status=completion_status,
+            success_status=success_status,
+            lesson_score=lesson_score,
+        )
 
         return context
 

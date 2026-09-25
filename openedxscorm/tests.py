@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
+import subprocess
+import sys
 import unittest
 
 
@@ -362,3 +364,229 @@ class ScormXBlockTests(unittest.TestCase):
             "cmi.core.student_name",
         ]
         self.assertTrue(key in block.scorm_data for key in student_info_keys)
+
+
+
+@ddt
+class ScormXBlockTrackingTests(unittest.TestCase):
+    """
+    Tests of the tracking events emitted by the XBlock.
+    """
+
+    # `interacted` is opt-in, so most of these tests have to enable it.
+    TRACK_INTERACTIONS = {"TRACKING_EVENTS": {"interacted": True}}
+
+    def make_one(self, settings=None, **kw):
+        """
+        Create a ScormXBlock with the given XBlock settings.
+        """
+        block = ScormXBlockTests.make_one(**kw)
+        patcher = mock.patch.object(
+            ScormXBlock, "xblock_settings", new_callable=mock.PropertyMock
+        )
+        xblock_settings = patcher.start()
+        self.addCleanup(patcher.stop)
+        xblock_settings.return_value = settings or {}
+        return block
+
+    @staticmethod
+    def published_events(block):
+        """
+        Return the (name, data) of the SCORM events published by the block.
+        """
+        return [
+            (call[0][1], call[0][2])
+            for call in block.runtime.publish.call_args_list
+            if str(call[0][1]).startswith("openedx.xblock.scorm.")
+        ]
+
+    def test_set_value_emits_completion_and_score(self):
+        block = self.make_one(has_score=True, weight=10)
+
+        block.set_value({"name": "cmi.core.score.raw", "value": "80"})
+        block.set_value({"name": "cmi.core.lesson_status", "value": "completed"})
+
+        events = dict(self.published_events(block))
+        self.assertIn("openedx.xblock.scorm.scored", events)
+        self.assertIn("openedx.xblock.scorm.completed", events)
+        self.assertEqual(events["openedx.xblock.scorm.scored"]["scaled_score"], 0.8)
+        self.assertEqual(events["openedx.xblock.scorm.scored"]["weighted_score"], 8)
+        self.assertEqual(events["openedx.xblock.scorm.scored"]["max_score"], 10)
+        self.assertEqual(
+            events["openedx.xblock.scorm.completed"]["completion_status"], "completed"
+        )
+
+    def test_set_value_emits_success_status(self):
+        block = self.make_one(has_score=True)
+
+        block.set_value({"name": "cmi.success_status", "value": "failed"})
+
+        events = dict(self.published_events(block))
+        self.assertIn("openedx.xblock.scorm.failed", events)
+        self.assertNotIn("openedx.xblock.scorm.passed", events)
+
+    def test_ungraded_blocks_report_no_score(self):
+        block = self.make_one(has_score=False)
+
+        block.set_value({"name": "cmi.core.score.raw", "value": "80"})
+        block.set_value({"name": "cmi.core.lesson_status", "value": "completed"})
+
+        events = dict(self.published_events(block))
+        self.assertNotIn("openedx.xblock.scorm.scored", events)
+        self.assertNotIn("scaled_score", events["openedx.xblock.scorm.completed"])
+
+    def test_interactions_are_not_tracked_by_default(self):
+        block = self.make_one()
+
+        block.set_value({"name": "cmi.core.lesson_location", "value": "slide_3"})
+
+        self.assertEqual(self.published_events(block), [])
+
+    @data("cmi.core.lesson_location", "cmi.location", "cmi.interactions.0.learner_response")
+    def test_learner_interactions_are_tracked(self, cmi_element):
+        block = self.make_one(settings=self.TRACK_INTERACTIONS)
+
+        block.set_value({"name": cmi_element, "value": "slide_3"})
+
+        events = dict(self.published_events(block))
+        self.assertEqual(
+            events["openedx.xblock.scorm.interacted"],
+            {
+                "block_id": str(block.scope_ids.usage_id),
+                "scorm_version": "SCORM_12",
+                "cmi_element": cmi_element,
+                "value": "slide_3",
+            },
+        )
+
+    @data("cmi.suspend_data", "cmi.core.total_time", "cmi.interactions.0.id")
+    def test_other_elements_are_not_tracked_as_interactions(self, cmi_element):
+        block = self.make_one(settings=self.TRACK_INTERACTIONS)
+
+        block.set_value({"name": cmi_element, "value": "some value"})
+
+        self.assertEqual(self.published_events(block), [])
+
+    def test_interaction_elements_are_configurable(self):
+        block = self.make_one(
+            settings={
+                "TRACKING_EVENTS": {"interacted": True},
+                "TRACKING_INTERACTION_ELEMENTS": ["cmi.*"],
+            }
+        )
+
+        block.set_value({"name": "cmi.suspend_data", "value": "state"})
+
+        events = dict(self.published_events(block))
+        self.assertIn("openedx.xblock.scorm.interacted", events)
+
+    def test_long_values_are_truncated(self):
+        block = self.make_one(
+            settings={
+                "TRACKING_EVENTS": {"interacted": True},
+                "TRACKING_INTERACTION_ELEMENTS": ["cmi.*"],
+            }
+        )
+
+        block.set_value({"name": "cmi.suspend_data", "value": "x" * 1000})
+
+        events = dict(self.published_events(block))
+        self.assertEqual(len(events["openedx.xblock.scorm.interacted"]["value"]), 255)
+
+    def test_tracking_can_be_disabled(self):
+        block = self.make_one(
+            settings={"TRACKING_EVENTS_ENABLED": False}, has_score=True
+        )
+
+        block.set_value({"name": "cmi.core.lesson_status", "value": "completed"})
+
+        self.assertEqual(self.published_events(block), [])
+
+    def test_single_events_can_be_disabled(self):
+        block = self.make_one(
+            settings={"TRACKING_EVENTS": {"interacted": True, "completed": False}}
+        )
+
+        block.set_value({"name": "cmi.core.lesson_location", "value": "slide_3"})
+        block.set_value({"name": "cmi.core.lesson_status", "value": "completed"})
+
+        events = dict(self.published_events(block))
+        self.assertIn("openedx.xblock.scorm.interacted", events)
+        self.assertNotIn("openedx.xblock.scorm.completed", events)
+
+    def test_a_single_state_event_is_emitted_per_batch(self):
+        block = self.make_one(settings=self.TRACK_INTERACTIONS, has_score=True)
+
+        block.scorm_set_values(
+            mock.Mock(
+                method="POST",
+                body=json.dumps(
+                    [
+                        {"name": "cmi.core.score.raw", "value": "50"},
+                        {"name": "cmi.score.scaled", "value": "0.8"},
+                        {"name": "cmi.core.lesson_location", "value": "slide_1"},
+                        {"name": "cmi.location", "value": "slide_2"},
+                    ]
+                ).encode(),
+            )
+        )
+
+        events = self.published_events(block)
+        scored = [data for name, data in events if name.endswith(".scored")]
+        interacted = [data for name, data in events if name.endswith(".interacted")]
+        # The score was set twice in the same batch, but only its last value is tracked
+        self.assertEqual(len(scored), 1)
+        self.assertEqual(scored[0]["scaled_score"], 0.8)
+        # Every learner interaction of the batch is tracked
+        self.assertEqual(len(interacted), 2)
+
+    def test_session_start_and_end_are_tracked(self):
+        block = self.make_one()
+
+        block.scorm_initialize(mock.Mock(method="POST", body=json.dumps({}).encode()))
+        block.scorm_terminate(mock.Mock(method="POST", body=json.dumps({}).encode()))
+
+        events = dict(self.published_events(block))
+        self.assertIn("openedx.xblock.scorm.initialized", events)
+        self.assertGreaterEqual(
+            events["openedx.xblock.scorm.terminated"]["duration"], 0
+        )
+        self.assertEqual(block.session_started_at, 0)
+
+    def test_session_duration_is_not_tracked_without_a_session_start(self):
+        block = self.make_one()
+
+        block.scorm_terminate(mock.Mock(method="POST", body=json.dumps({}).encode()))
+
+        events = dict(self.published_events(block))
+        self.assertNotIn("duration", events["openedx.xblock.scorm.terminated"])
+
+    def test_disabled_tracking_does_not_record_the_session(self):
+        block = self.make_one(settings={"TRACKING_EVENTS_ENABLED": False})
+
+        block.scorm_initialize(mock.Mock(method="POST", body=json.dumps({}).encode()))
+        block.scorm_terminate(mock.Mock(method="POST", body=json.dumps({}).encode()))
+
+        self.assertEqual(self.published_events(block), [])
+        self.assertEqual(block.session_started_at, 0)
+
+
+class SettingsImportTests(unittest.TestCase):
+    """
+    Operators import `openedxscorm.tracking` from their Django settings to declare
+    the tracking events of this XBlock to event-routing-backends. That happens
+    before the app registry is ready, so it must not drag in the XBlock, which
+    imports the models of the platform.
+    """
+
+    def test_tracking_can_be_imported_without_the_xblock(self):
+        # A subprocess, because both modules are already imported in this one.
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-c",
+                "import sys; import openedxscorm.tracking;"
+                " assert 'openedxscorm.scormxblock' not in sys.modules,"
+                " 'importing openedxscorm.tracking imported the XBlock'",
+            ]
+        )

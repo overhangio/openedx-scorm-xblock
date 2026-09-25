@@ -236,6 +236,7 @@ function ScormXBlock(runtime, element, settings) {
         if (setValueEvents.length === 0) {
             // Exit if there is no event left in the queue
             processingSetValueEventsQueue = false;
+            sendTerminate(false);
             return;
         }
         processingSetValueEventsQueue = true;
@@ -274,8 +275,59 @@ function ScormXBlock(runtime, element, settings) {
         });
     };
 
+    // Session lifecycle. These calls let the LMS know that the learner started
+    // and finished a SCORM session; they are only used for tracking purposes,
+    // so their failure never interrupts the package.
+    var initializeUrl = runtime.handlerUrl(element, 'scorm_initialize');
+    var terminateUrl = runtime.handlerUrl(element, 'scorm_terminate');
+    var terminatePending = false;
+
+    var Initialize = function () {
+        $.ajax({
+            type: "POST",
+            url: initializeUrl,
+            data: "{}"
+        });
+    };
+
+    function sendTerminate(synchronous) {
+        if (!terminatePending) {
+            return;
+        }
+        terminatePending = false;
+        $.ajax({
+            type: "POST",
+            url: terminateUrl,
+            data: "{}",
+            async: !synchronous
+        });
+    }
+
+    var Terminate = function () {
+        terminatePending = true;
+        // Packages write their final status and score right before
+        // terminating, and those values are still on their way to the LMS in
+        // the SetValue queue. Terminating before they land would report the
+        // state of the previous batch, so we wait for the queue to drain.
+        if (!processingSetValueEventsQueue) {
+            sendTerminate(false);
+        }
+    };
+
+    // The package terminated while the queue was still busy and the page is
+    // going away before it drained. A synchronous request is the only one the
+    // browser may still carry out, and some browsers drop it anyway, so the
+    // terminate event is best-effort.
+    window.addEventListener('pagehide', function () {
+        sendTerminate(true);
+    });
+
     $(function ($) {
-        initScorm(settings.scorm_version, GetValue, SetValue);
+        var trackSession = settings.tracking_enabled;
+        initScorm(
+            settings.scorm_version, GetValue, SetValue,
+            trackSession ? Initialize : null, trackSession ? Terminate : null
+        );
         initFullscreen();
         initPopupWindow();
         initReports();
