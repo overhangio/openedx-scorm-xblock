@@ -1,0 +1,1 @@
+- [Bugfix] Support HTTP byte-range requests (HTTP 206 Partial Content) in asset proxy to resolve audio/visual seekbar synchronization issues in SCORM players. (by @gaurang8)
