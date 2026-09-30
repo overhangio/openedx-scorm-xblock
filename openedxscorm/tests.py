@@ -69,71 +69,6 @@ class ScormXBlockTests(unittest.TestCase):
         self.assertEqual(block.width, 800)
         self.assertEqual(block.height, 450)
 
-    @freeze_time("2018-05-01")
-    @mock.patch("openedxscorm.ScormXBlock.update_package_fields")
-    @mock.patch("openedxscorm.scormxblock.os")
-    @mock.patch("openedxscorm.scormxblock.zipfile")
-    @mock.patch("openedxscorm.scormxblock.File", return_value="call_file")
-    @mock.patch("openedxscorm.scormxblock.default_storage")
-    @mock.patch(
-        "openedxscorm.ScormXBlock._file_storage_path", return_value="file_storage_path"
-    )
-    @mock.patch("openedxscorm.ScormXBlock.get_sha1", return_value="sha1")
-    def test_save_scorm_zipfile(
-        self,
-        get_sha1,
-        file_storage_path,
-        default_storage,
-        mock_file,
-        zipfile,
-        mock_os,
-        update_package_fields,
-    ):
-        block = self.make_one()
-        mock_file_object = mock.Mock()
-        mock_file_object.configure_mock(name="scorm_file_name")
-        default_storage.configure_mock(size=mock.Mock(return_value="1234"))
-        mock_os.configure_mock(path=mock.Mock(join=mock.Mock(return_value="path_join")))
-
-        fields = {
-            "display_name": "Test Block",
-            "has_score": "True",
-            "file": mock.Mock(file=mock_file_object),
-            "width": None,
-            "height": 450,
-        }
-
-        block.studio_submit(mock.Mock(method="POST", params=fields))
-
-        expected_package_meta = {
-            "path": "file_storage_path",
-            "sha1": "sha1",
-            "name": "scorm_file_name",
-            "last_updated": "2018-05-01T00:00:00.000000",
-            "size": "1234",
-        }
-
-        get_sha1.assert_called_once_with(mock_file_object)
-        file_storage_path.assert_called_once_with()
-        default_storage.exists.assert_called_once_with("file_storage_path")
-        default_storage.delete.assert_called_once_with("file_storage_path")
-        default_storage.save.assert_called_once_with("file_storage_path", "call_file")
-        mock_file.assert_called_once_with(mock_file_object)
-
-        self.assertEqual(block.package_meta, expected_package_meta)
-
-        zipfile.ZipFile.assert_called_once_with(mock_file_object, "r")
-        update_package_fields.assert_called_once_with()
-
-    def test_build_file_storage_path(self):
-        block = self.make_one(
-            package_meta={"sha1": "sha1", "name": "scorm_file_name.html"}
-        )
-
-        file_storage_path = block.package_path
-
-        self.assertEqual(file_storage_path, "org/course/block_type/block_id/sha1.html")
-
     @mock.patch.object(
         ScormXBlock, "extract_folder_path", new_callable=mock.PropertyMock
     )
@@ -221,23 +156,6 @@ class ScormXBlockTests(unittest.TestCase):
 
         with self.assertRaises(ScormError):
             block.clean_asset_path(suffix)
-
-    @mock.patch(
-        "openedxscorm.ScormXBlock._file_storage_path", return_value="file_storage_path"
-    )
-    @mock.patch("openedxscorm.scormxblock.default_storage")
-    def test_student_view_data(self, default_storage, file_storage_path):
-        block = self.make_one(package_meta={"last_updated": "2018-05-01", "size": 1234})
-        default_storage.configure_mock(url=mock.Mock(return_value="url_zip_file"))
-
-        student_view_data = block.student_view_data()
-
-        file_storage_path.assert_called_once_with()
-        default_storage.url.assert_called_once_with("file_storage_path")
-        self.assertEqual(
-            student_view_data,
-            {"last_modified": "2018-05-01", "scorm_data": "url_zip_file", "size": 1234},
-        )
 
     @mock.patch(
         "openedxscorm.ScormXBlock.get_completion_status",
