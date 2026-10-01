@@ -376,6 +376,7 @@ class ScormXBlockTests(unittest.TestCase):
     @data(
         "cmi.core.lesson_status",  # Scorm 1.2
         "cmi.completion_status",  # Scorm 2004
+        "cmi.progress_measure",  # progress-based completion (emit_completion)
         "lesson_status",  # minified driver assembling the "cmi." prefix
     )
     @mock.patch.object(
@@ -544,6 +545,7 @@ class ScormXBlockTests(unittest.TestCase):
         block = self.make_one(
             package_meta={"sha1": "sha1"}, index_page_path="index.html"
         )
+        block._rehydrate_extract_folder_if_missing = mock.Mock()
         block.scan_extracted_package = mock.Mock(
             return_value=[WARNING_NO_COMPLETION_STATUS]
         )
@@ -560,16 +562,39 @@ class ScormXBlockTests(unittest.TestCase):
             messages, [PACKAGE_WARNING_MESSAGES[WARNING_NO_COMPLETION_STATUS]]
         )
 
+    def test_get_package_warning_messages_rehydrates_before_scanning(self):
+        # A reran course clones this block before its storage, so the extract
+        # folder may still be missing here. Rehydrating has to happen before
+        # the scan, or a legacy package gets cached as warning-free for good.
+        block = self.make_one(
+            package_meta={"sha1": "sha1"}, index_page_path="index.html"
+        )
+        manager = mock.Mock()
+        manager.scan_extracted_package.return_value = []
+        block._rehydrate_extract_folder_if_missing = manager.rehydrate
+        block.scan_extracted_package = manager.scan_extracted_package
+        patched_cache, _cache = self.patch_cache()
+
+        with patched_cache:
+            block.get_package_warning_messages()
+
+        self.assertEqual(
+            [call[0] for call in manager.mock_calls],
+            ["rehydrate", "scan_extracted_package"],
+        )
+
     def test_get_package_warning_messages_of_cached_scan(self):
         block = self.make_one(
             package_meta={"sha1": "sha1"}, index_page_path="index.html"
         )
+        block._rehydrate_extract_folder_if_missing = mock.Mock()
         block.scan_extracted_package = mock.Mock()
         patched_cache, cache = self.patch_cache([WARNING_NO_COMPLETION_STATUS])
 
         with patched_cache:
             messages = block.get_package_warning_messages()
 
+        block._rehydrate_extract_folder_if_missing.assert_not_called()
         block.scan_extracted_package.assert_not_called()
         cache.set.assert_not_called()
         self.assertEqual(
@@ -580,6 +605,7 @@ class ScormXBlockTests(unittest.TestCase):
         block = self.make_one(
             package_meta={"sha1": "sha1"}, index_page_path="index.html"
         )
+        block._rehydrate_extract_folder_if_missing = mock.Mock()
         block.scan_extracted_package = mock.Mock(side_effect=OSError)
         patched_cache, cache = self.patch_cache()
 
@@ -588,7 +614,7 @@ class ScormXBlockTests(unittest.TestCase):
 
         cache.set.assert_not_called()
 
-    @data("driver.js", "index.html", "index.htm", "page.xhtml", "a.xml", "a.json", "a.txt")
+    @data("driver.js", "driver.mjs", "index.html", "index.htm", "page.xhtml", "a.xml", "a.json", "a.txt")
     def test_package_scan_wants_files_that_may_hold_scorm_api_calls(self, file_name):
         self.assertTrue(PackageScan().wants(file_name))
 

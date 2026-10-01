@@ -58,9 +58,9 @@ The content of the package will be displayed in the Studio and the LMS after you
 Completion reporting
 ~~~~~~~~~~~~~~~~~~~~
 
-In SCORM, it is the content package -- not the LMS -- that decides when a learner has completed an activity. The package is expected to report it by setting ``cmi.core.lesson_status`` (SCORM 1.2) or ``cmi.completion_status`` (SCORM 2004). A package that never does so leaves its learners marked as "not attempted", however much of the content they go through, and there is nothing this XBlock can do about it: the package has to be fixed in the authoring tool that produced it.
+In SCORM, the content package decides when a learner has completed an activity, not the LMS. It's expected to report this by setting ``cmi.core.lesson_status`` (SCORM 1.2), ``cmi.completion_status`` (SCORM 2004), or ``cmi.progress_measure``. A package that never does so leaves learners marked as "not attempted" no matter how much content they go through, and there's nothing this XBlock can do about it: it has to be fixed in the authoring tool that produced it.
 
-To make that failure visible instead of silent, uploaded packages are checked for any attempt to report completion, and a warning is displayed on the component in the Studio when none is found. The warning is only shown to course authors: learners never see it. It is based on a scan of the package contents, so it may stay silent about a package that reports completion in an unusual way -- when in doubt, it says nothing rather than warn about a package that may well be correct.
+To surface that instead of failing silently, uploaded packages are scanned for any attempt to report completion, and a warning is shown on the component in Studio when none is found. Course authors only: learners never see it. Since it's a scan of the package contents, it may stay quiet about a package that reports completion in an unusual way -- it says nothing rather than risk warning about a package that's actually fine.
 
 Advanced configuration
 ----------------------
