@@ -1,6 +1,7 @@
 import json
 import hashlib
 import os
+import posixpath
 import logging
 import re
 import time
@@ -240,26 +241,80 @@ class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
         -------
         Response object containing the content of the requested file with the appropriate content type.
         """
-        try:
-            clean_suffix = self.clean_asset_path(suffix)
-        except ScormError:
-            logger.error("Invalid asset path: %r", suffix)
+        if not isinstance(suffix, str):
             return Response("Invalid asset path", status=400, content_type="text/plain")
-        file_name = os.path.basename(clean_suffix)
-        requested_path = os.path.join(self.extract_folder_path, clean_suffix)
-        if self.storage.exists(requested_path):
-            file_path = requested_path
-        else:
-            # Preserve legacy basename lookup for packages or callers that do
-            # not request the extracted relative path. Exact-path lookup above
-            # avoids this fallback for normal requests with duplicate basenames.
-            file_path = self.find_file_path(file_name)
-        file_type, _ = mimetypes.guess_type(file_name)
-        with self.storage.open(file_path) as response:
+
+        path = suffix.split("?", 1)[0]
+        if not path or re.search(r"%(?![0-9A-Fa-f]{2})", path):
+            return Response("Invalid asset path", status=400, content_type="text/plain")
+        if re.search(r"%(?:2[fF]|5[cC])", path):
+            return Response("Invalid asset path", status=400, content_type="text/plain")
+
+        try:
+            canonical_suffix = urllib.parse.unquote(
+                path,
+                encoding="utf-8",
+                errors="strict",
+            )
+        except UnicodeDecodeError:
+            return Response("Invalid asset path", status=400, content_type="text/plain")
+
+        if (
+            "%" in canonical_suffix
+            or "\x00" in canonical_suffix
+            or "\\" in canonical_suffix
+            or canonical_suffix.startswith("/")
+            or re.match(r"^[A-Za-z]:", canonical_suffix)
+        ):
+            return Response("Invalid asset path", status=400, content_type="text/plain")
+
+        segments = canonical_suffix.split("/")
+        if any(segment in ("", ".", "..") for segment in segments):
+            return Response("Invalid asset path", status=400, content_type="text/plain")
+
+        normalized_suffix = posixpath.normpath(canonical_suffix)
+        if (
+            not normalized_suffix
+            or posixpath.isabs(normalized_suffix)
+            or normalized_suffix != "/".join(segments)
+        ):
+            return Response("Invalid asset path", status=400, content_type="text/plain")
+
+        root = self.scorm_location()
+        usage_hash = hashlib.sha1(
+            str(self.scope_ids.usage_id).encode("utf-8"), usedforsecurity=False
+        ).hexdigest()
+        hashed_usage_base = posixpath.join(root, usage_hash)
+        deprecated_block_base = posixpath.join(
+            root,
+            str(self.location.block_id),
+        )
+        package_hash = self.package_meta["sha1"]
+        candidates = (
+            posixpath.join(hashed_usage_base, package_hash, normalized_suffix),
+            posixpath.join(deprecated_block_base, package_hash, normalized_suffix),
+            posixpath.join(hashed_usage_base, normalized_suffix),
+            posixpath.join(deprecated_block_base, normalized_suffix),
+        )
+
+        selected_path = next(
+            (candidate for candidate in candidates if self.storage.exists(candidate)),
+            None,
+        )
+        if selected_path is None:
+            return Response("Asset not found", status=404, content_type="text/plain")
+
+        content_length = self.storage.size(selected_path)
+        with self.storage.open(selected_path, "rb") as response:
             file_content = response.read()
 
-
-        return Response(file_content, content_type=file_type)
+        file_type = (
+            mimetypes.guess_type(normalized_suffix)[0]
+            or "application/octet-stream"
+        )
+        result = Response(file_content, content_type=file_type)
+        result.content_length = content_length
+        return result
 
     def studio_view(self, context=None):
         # Note that we cannot use xblockutils's StudioEditableXBlockMixin because we
@@ -823,6 +878,27 @@ class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
             self.success_status = success_status
         if completion_status == "completed":
             self.emit_completion(1)
+        # Score-less packages (e.g. Articulate Rise exports without quizzes)
+        # report a terminal lesson_status but never any score element, which
+        # published a permanent 0/weight grade when has_score is enabled.
+        # Award full credit on successful completion when the package has
+        # never reported a score; a real score reported later overwrites it.
+        if (
+            self.has_score
+            and lesson_score is None
+            and (success_status == "passed" or completion_status == "completed")
+            and self.success_status != "failed"
+            and not any(
+                score_name in self.scorm_data
+                for score_name in (
+                    "cmi.core.score.raw",
+                    "cmi.score.raw",
+                    "cmi.score.scaled",
+                )
+            )
+        ):
+            self.lesson_score = 1
+            context.update({"grade": self.get_grade()})
         if (
             success_status
             or completion_status == "completed"

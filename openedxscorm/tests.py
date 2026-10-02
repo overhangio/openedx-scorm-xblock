@@ -9,6 +9,7 @@ from ddt import ddt, data
 from freezegun import freeze_time
 import mock
 from xblock.field_data import DictFieldData
+from xblock.fields import ScopeIds
 
 from .scormxblock import ScormError, ScormXBlock
 
@@ -134,40 +135,41 @@ class ScormXBlockTests(unittest.TestCase):
 
         self.assertEqual(file_storage_path, "org/course/block_type/block_id/sha1.html")
 
-    @mock.patch.object(
-        ScormXBlock, "extract_folder_path", new_callable=mock.PropertyMock
-    )
-    def test_assets_proxy_serves_exact_requested_path(self, extract_folder_path):
-        block = self.make_one()
+    def test_assets_proxy_serves_exact_requested_path(self):
+        block = self.make_one(package_meta={"sha1": "sha1"})
+        block.runtime.service.return_value = None
+        block.scope_ids = ScopeIds("learner", "scorm", "definition", "usage")
         storage = self.make_storage_with_file(b"exact asset")
         storage.exists.return_value = True
+        storage.size.return_value = len(b"exact asset")
         block._storage = storage
         block.find_file_path = mock.Mock(return_value="scorm/block/sha1/other/app.js")
-        extract_folder_path.return_value = "scorm/block/sha1"
 
         response = block.assets_proxy(mock.Mock(), "assets/app.js")
 
-        storage.exists.assert_called_once_with("scorm/block/sha1/assets/app.js")
+        requested = "scorm/c629ba0ed3388c36c69d161bf77f96f320185dc3/sha1/assets/app.js"
+        storage.exists.assert_called_once_with(requested)
         block.find_file_path.assert_not_called()
-        storage.open.assert_called_once_with("scorm/block/sha1/assets/app.js")
+        storage.listdir.assert_not_called()
+        storage.open.assert_called_once_with(requested, "rb")
         self.assertEqual(response.body, b"exact asset")
 
-    @mock.patch.object(
-        ScormXBlock, "extract_folder_path", new_callable=mock.PropertyMock
-    )
-    def test_assets_proxy_fallback_uses_cleaned_basename(self, extract_folder_path):
-        block = self.make_one()
+    def test_assets_proxy_missing_path_never_uses_basename_fallback(self):
+        block = self.make_one(package_meta={"sha1": "sha1"})
+        block.runtime.service.return_value = None
+        block.scope_ids = ScopeIds("learner", "scorm", "definition", "usage")
         storage = self.make_storage_with_file()
         storage.exists.return_value = False
         block._storage = storage
         block.find_file_path = mock.Mock(return_value="scorm/block/sha1/fallback/app.js")
-        extract_folder_path.return_value = "scorm/block/sha1"
 
-        block.assets_proxy(mock.Mock(), "assets/app.js?v=1")
+        response = block.assets_proxy(mock.Mock(), "assets/app.js?v=1")
 
-        storage.exists.assert_called_once_with("scorm/block/sha1/assets/app.js")
-        block.find_file_path.assert_called_once_with("app.js")
-        storage.open.assert_called_once_with("scorm/block/sha1/fallback/app.js")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(storage.exists.call_count, 4)
+        block.find_file_path.assert_not_called()
+        storage.open.assert_not_called()
+        storage.listdir.assert_not_called()
 
     @data(
         "",

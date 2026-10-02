@@ -140,3 +140,29 @@
 .reload-report {
     margin: 0 1rem;
 }
+
+
+/* MEREKA_SCORM_REPORT_CSS_BEGIN */
+.scorm-xblock .scorm-report__summary {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+.scorm-xblock .scorm-report__summary th,
+.scorm-xblock .scorm-report__summary td {
+  border: 1px solid rgba(26, 22, 35, 0.15);
+  padding: 0.35rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+.scorm-xblock .scorm-report__summary th {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.scorm-xblock .scorm-report__raw {
+  margin-top: 0.5rem;
+}
+.scorm-xblock .scorm-report__raw > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+/* MEREKA_SCORM_REPORT_CSS_END */
