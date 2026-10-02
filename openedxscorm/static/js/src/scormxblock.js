@@ -155,6 +155,58 @@ function ScormXBlock(runtime, element, settings) {
     function reloadReport() {
         getReport(studentId)
     }
+    // Human-readable staff report: summary table of the CMI fields staff
+    // actually inspect, raw dict collapsed behind <details> with the
+    // multi-kilobyte suspend_data resume blob elided to its length.
+    function buildScormReport(data) {
+        function pick() {
+            for (var i = 0; i < arguments.length; i++) {
+                var value = data[arguments[i]];
+                if (value !== undefined && value !== null && String(value) !== "") {
+                    return String(value);
+                }
+            }
+            return "";
+        }
+        var status = pick("cmi.core.lesson_status", "cmi.completion_status");
+        var success = pick("cmi.success_status");
+        if (success && success !== "unknown" && success !== status) {
+            status = status ? status + " (" + success + ")" : success;
+        }
+        var rows = [
+            ["Learner", pick("cmi.core.student_name", "cmi.learner_name")],
+            ["Status", status || "not attempted"],
+            ["Score", pick("cmi.core.score.raw", "cmi.score.raw", "cmi.score.scaled")],
+            ["Last session time", pick("cmi.core.session_time", "cmi.session_time")],
+            ["Total time", pick("cmi.core.total_time", "cmi.total_time")],
+            ["Last location", pick("cmi.core.lesson_location", "cmi.location")],
+            ["Exit mode", pick("cmi.core.exit", "cmi.exit")]
+        ];
+        var container = $("<div>", {"class": "scorm-report"});
+        var table = $("<table>", {"class": "scorm-report__summary"});
+        $.each(rows, function (index, row) {
+            if (!row[1]) {
+                return;
+            }
+            table.append(
+                $("<tr>")
+                    .append($("<th>", {scope: "row", text: row[0]}))
+                    .append($("<td>", {text: row[1]}))
+            );
+        });
+        container.append(table);
+        var raw = $.extend({}, data);
+        $.each(["cmi.suspend_data", "cmi.core.suspend_data"], function (index, key) {
+            if (typeof raw[key] === "string" && raw[key].length > 120) {
+                raw[key] = "[resume state omitted: " + raw[key].length + " chars]";
+            }
+        });
+        var details = $("<details>", {"class": "scorm-report__raw"});
+        details.append($("<summary>", {text: "Raw CMI data"}));
+        details.append($("<div>").append(renderjson.set_show_to_level(1)(raw)));
+        container.append(details);
+        return container;
+    }
     function getReport(studentId) {
         reportElement.html("loading...");
         var getReportUrl = runtime.handlerUrl(element, 'scorm_get_student_state');
@@ -164,7 +216,7 @@ function ScormXBlock(runtime, element, settings) {
                 'id': studentId
             },
         }).success(function (data) {
-            reportElement.html(renderjson.set_show_to_level(1)(data));
+            reportElement.empty().append(buildScormReport(data));
         }).fail(function () {
             reportElement.html("No data found");
         }).complete(function () {
@@ -221,6 +273,9 @@ function ScormXBlock(runtime, element, settings) {
     var setValueEvents = [];
     var processingSetValueEventsQueue = false;
     var setValuesUrl = runtime.handlerUrl(element, 'scorm_set_values');
+    // Preserve the native serialized queue. A separate unload request can
+    // commit before an older in-flight save, which would overwrite newer state.
+    // Page-close delivery needs a runtime persistence protocol before adding it.
     var SetValue = function (cmi_element, value) {
         SetValueAsync(cmi_element, value);
         return "true";
@@ -261,7 +316,7 @@ function ScormXBlock(runtime, element, settings) {
             success: function (results) {
                 for (var i = 0; i < results.length; i += 1) {
                     var result = results[i];
-                    if (typeof result.grade != "undefined") {
+                    if (typeof result.grade !== "undefined") {
                         // Properly display at most two decimals
                         $(element).find(".grade").html(Math.round(result.grade * 100) / 100);
                     }
