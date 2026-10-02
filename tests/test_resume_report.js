@@ -48,28 +48,29 @@ function scorm(staff = false) {
     return {window, document, requests, ajax, nodes, set: (...args) => setValue(...args),
         report(data) {selectedReport({}, {item: {data: {student_id: 1}}}); reportResponse(data);}};
 }
-test('SCORM pending resume survives pagehide with correct native endpoint and CSRF', () => {
-    const s = scorm(); assert.equal(s.set('cmi.suspend_data', 'owned-answer'), 'true');
-    s.window.emit('pagehide'); s.document.visibilityState = 'hidden'; s.document.emit('visibilitychange');
-    assert.equal(s.requests.length, 1);
-    const {url, options} = s.requests[0];
-    assert.equal(url, '/native/scorm_set_values'); assert.equal(options.keepalive, true);
-    assert.equal(options.headers['X-CSRFToken'], 'scorm-token');
-    assert.deepEqual(JSON.parse(options.body), [{name: 'cmi.suspend_data', value: 'owned-answer'}]);
-});
-test('SCORM acknowledged state is not retransmitted; late writes survive an older acknowledgment', () => {
+test('page hide never starts a parallel resume write while the native queue is in flight', () => {
     const s = scorm(); s.set('cmi.suspend_data', 'old'); s.set('cmi.suspend_data', 'new');
-    s.ajax[0].success([]); s.ajax[0].complete(); s.window.emit('pagehide');
-    assert.equal(s.requests.length, 1);
-    assert.deepEqual(JSON.parse(s.requests[0].options.body), [{name: 'cmi.suspend_data', value: 'new'}]);
-    const a = scorm(); a.set('cmi.location', 'saved'); a.ajax[0].success([]); a.ajax[0].complete();
-    a.window.emit('pagehide'); assert.equal(a.requests.length, 0);
+    assert.equal(s.ajax.length, 1);
+    s.window.emit('pagehide'); s.document.visibilityState = 'hidden'; s.document.emit('visibilitychange');
+    assert.equal(s.requests.length, 0);
+    assert.equal(s.ajax.filter(r => r.url === '/native/scorm_set_values').length, 1);
+    assert.deepEqual(JSON.parse(s.ajax[0].data), [{name: 'cmi.suspend_data', value: 'old'}]);
+    // Destroyed-page delivery is deliberately unclaimed. With a live page,
+    // acknowledgement serializes the next request after the first completes.
+    s.ajax[0].success([]); s.ajax[0].complete();
+    const saves = s.ajax.filter(r => r.url === '/native/scorm_set_values');
+    assert.equal(saves.length, 2);
+    assert.deepEqual(JSON.parse(saves[1].data), [{name: 'cmi.suspend_data', value: 'new'}]);
 });
-test('SCORM unload fallback never sends grades, status, completion, session time or exit', () => {
+test('normal queue preserves score, completion and session values in their original order', () => {
     const s = scorm();
-    for (const key of ['cmi.core.lesson_status', 'cmi.completion_status', 'cmi.success_status',
-        'cmi.core.score.raw', 'cmi.score.raw', 'cmi.score.scaled', 'cmi.mode',
-        'cmi.progress_measure', 'cmi.session_time', 'cmi.core.session_time', 'cmi.exit', 'cmi.core.exit']) s.set(key, '1');
+    const pairs = [['cmi.core.score.raw', '0'], ['cmi.completion_status', 'completed'],
+        ['cmi.session_time', 'PT1M'], ['cmi.exit', 'suspend']];
+    pairs.forEach(pair => s.set(...pair));
+    assert.equal(s.ajax.length, 1);
+    s.ajax[0].success([{grade: 0}]); s.ajax[0].complete();
+    assert.deepEqual(JSON.parse(s.ajax[0].data), [{name: pairs[0][0], value: pairs[0][1]}]);
+    assert.deepEqual(JSON.parse(s.ajax[1].data), pairs.slice(1).map(([name, value]) => ({name, value})));
     s.window.emit('pagehide'); assert.equal(s.requests.length, 0);
 });
 test('SCORM report keeps learner content as text and elides long resume state', () => {

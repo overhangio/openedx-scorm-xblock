@@ -902,7 +902,7 @@ class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
         if (
             success_status
             or completion_status == "completed"
-            or (is_completed and lesson_score)
+            or ((is_completed or self.success_status == "passed") and lesson_score is not None)
         ):
             if self.has_score:
                 self.publish_grade()

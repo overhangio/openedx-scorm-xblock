@@ -51,6 +51,24 @@ class ScormCompatibilityTests(unittest.TestCase):
         self.assertEqual(result['grade'], 0.5)
         self.assertEqual(block.get_grade(), 0.5)
 
+    def test_later_zero_and_nonzero_scores_replace_published_fallback(self):
+        for status, terminal in (('cmi.core.lesson_status', 'passed'),
+                                 ('cmi.core.lesson_status', 'completed'),
+                                 ('cmi.completion_status', 'completed'),
+                                 ('cmi.success_status', 'passed')):
+            for name in ('cmi.core.score.raw', 'cmi.score.raw', 'cmi.score.scaled'):
+                for value in ('0', '0.25'):
+                    with self.subTest(status=status, terminal=terminal, score=name, value=value):
+                        block = self.block(has_score=True, weight=2)
+                        block.set_value({'name': status, 'value': terminal})
+                        result = block.set_value({'name': name, 'value': value})
+                        publications = [call.args[2] for call in block.runtime.publish.call_args_list
+                                        if call.args[1] == 'grade']
+                        self.assertEqual(publications[0]['value'], 2)
+                        self.assertEqual(len(publications), 2)
+                        self.assertEqual(publications[-1]['value'], block.get_grade())
+                        self.assertEqual(result['grade'], block.get_grade())
+
     def test_incomplete_failed_and_ungraded_packages_get_no_fallback_credit(self):
         for fields, name, value in (({'has_score': True}, 'cmi.core.lesson_status', 'incomplete'),
                                     ({'has_score': True}, 'cmi.success_status', 'failed'),

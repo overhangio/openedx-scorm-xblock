@@ -273,86 +273,15 @@ function ScormXBlock(runtime, element, settings) {
     var setValueEvents = [];
     var processingSetValueEventsQueue = false;
     var setValuesUrl = runtime.handlerUrl(element, 'scorm_set_values');
-    // learner's pre-submit answers survive navigating away / closing the tab,
-    // even if the async save POST has not yet landed. fetch(keepalive) survives
-    // unload AND carries the LMS X-CSRFToken header (the XBlock callback runs
-    // CsrfViewMiddleware for authenticated users; sendBeacon cannot set headers).
-    // Only cached resume/answer state that is not yet confirmed-saved is
-    // flushed; completion/status/score and session_time/exit are excluded so
-    // the fallback never re-emits completion, republishes grade, or races the
-    // normal queue. The pending set is drained on flush (one-shot).
-    var pendingResume = Object.create(null);
-    var resumeExclude = [
-        "cmi.core.session_time", "cmi.session_time", "cmi.core.exit", "cmi.exit", "cmi.progress_measure"
-    ];
-    function markPendingResume(cmi_element, value) {
-        // Only cached resume/answer state (suspend_data, location,
-        // interactions, ...) is flushed on unload. Completion/status/score
-        // values (uncachedValues) go through the normal queue; re-sending
-        // them would re-emit completion / republish grade and race that
-        // request, so they are excluded here. cmi.progress_measure is also
-        // completion-emitting (emit_completion) but lives in the cached set,
-        // so it is excluded here too (as are session_time/exit).
-        if (uncachedValues.indexOf(cmi_element) === -1 && resumeExclude.indexOf(cmi_element) === -1) {
-            pendingResume[cmi_element] = value;
-        }
-    }
-    function clearSavedResume(sentPairs) {
-        for (var i = 0; i < sentPairs.length; i += 1) {
-            var name = sentPairs[i][0];
-            var value = sentPairs[i][1];
-            if (Object.prototype.hasOwnProperty.call(pendingResume, name) && pendingResume[name] === value) {
-                delete pendingResume[name];
-            }
-        }
-    }
-    function csrfToken() {
-        var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-        return match ? decodeURIComponent(match[1]) : "";
-    }
-    function flushResumeOnHide() {
-        var names = Object.keys(pendingResume);
-        if (names.length === 0 || typeof fetch !== "function") {
-            return;
-        }
-        var data = names.map(function (name) {
-            return { "name": name, "value": pendingResume[name] };
-        });
-        // Drain the pending set so hidden + pagehide together produce a
-        // single request (one-shot), never a duplicate.
-        for (var j = 0; j < names.length; j += 1) {
-            delete pendingResume[names[j]];
-        }
-        try {
-            fetch(setValuesUrl, {
-                method: "POST",
-                keepalive: true,
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrfToken()
-                },
-                body: JSON.stringify(data)
-            }).catch(function (error) {
-                console.warn("SCORM resume save failed during page hide", error);
-            });
-        } catch (error) {
-            console.warn("SCORM resume save could not start during page hide", error);
-        }
-    }
-    window.addEventListener("pagehide", flushResumeOnHide);
-    document.addEventListener("visibilitychange", function () {
-        if (document.visibilityState === "hidden") {
-            flushResumeOnHide();
-        }
-    });
+    // Preserve the native serialized queue. A separate unload request can
+    // commit before an older in-flight save, which would overwrite newer state.
+    // Page-close delivery needs a runtime persistence protocol before adding it.
     var SetValue = function (cmi_element, value) {
         SetValueAsync(cmi_element, value);
         return "true";
     }
     function SetValueAsync(cmi_element, value) {
         setValueEvents.push([cmi_element, value]);
-        markPendingResume(cmi_element, value);
         if (!processingSetValueEventsQueue) {
             // There is no running queue processor so we start one
             processSetValueQueueItems();
@@ -367,7 +296,6 @@ function ScormXBlock(runtime, element, settings) {
         }
         processingSetValueEventsQueue = true;
         var data = [];
-        var sentPairs = [];
         while (setValueEvents.length > 0) {
             params = setValueEvents.shift();
             cmi_element = params[0];
@@ -380,14 +308,12 @@ function ScormXBlock(runtime, element, settings) {
                 'name': cmi_element,
                 'value': value
             })
-            sentPairs.push([cmi_element, value]);
         }
         $.ajax({
             type: "POST",
             url: setValuesUrl,
             data: JSON.stringify(data),
             success: function (results) {
-                clearSavedResume(sentPairs);
                 for (var i = 0; i < results.length; i += 1) {
                     var result = results[i];
                     if (typeof result.grade !== "undefined") {
