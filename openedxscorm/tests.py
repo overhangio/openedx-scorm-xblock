@@ -8,6 +8,7 @@ import unittest
 from ddt import ddt, data
 from freezegun import freeze_time
 import mock
+from webob import Request
 from xblock.field_data import DictFieldData
 
 from .scormxblock import ScormError, ScormXBlock
@@ -145,7 +146,7 @@ class ScormXBlockTests(unittest.TestCase):
         block.find_file_path = mock.Mock(return_value="scorm/block/sha1/other/app.js")
         extract_folder_path.return_value = "scorm/block/sha1"
 
-        response = block.assets_proxy(mock.Mock(), "assets/app.js")
+        response = block.assets_proxy(mock.Mock(range=None), "assets/app.js")
 
         storage.exists.assert_called_once_with("scorm/block/sha1/assets/app.js")
         block.find_file_path.assert_not_called()
@@ -163,11 +164,75 @@ class ScormXBlockTests(unittest.TestCase):
         block.find_file_path = mock.Mock(return_value="scorm/block/sha1/fallback/app.js")
         extract_folder_path.return_value = "scorm/block/sha1"
 
-        block.assets_proxy(mock.Mock(), "assets/app.js?v=1")
+        block.assets_proxy(mock.Mock(range=None), "assets/app.js?v=1")
 
         storage.exists.assert_called_once_with("scorm/block/sha1/assets/app.js")
         block.find_file_path.assert_called_once_with("app.js")
         storage.open.assert_called_once_with("scorm/block/sha1/fallback/app.js")
+
+    def _assets_proxy_range_response(self, range_header):
+        """
+        Serve "app.js" (26 bytes, b"abcdefghijklmnopqrstuvwxyz") through
+        assets_proxy with the given Range header value (None for no header).
+        """
+        block = self.make_one()
+        storage = self.make_storage_with_file(b"abcdefghijklmnopqrstuvwxyz")
+        storage.exists.return_value = True
+        block._storage = storage
+        headers = {"Range": range_header} if range_header else {}
+        request = Request.blank("/assets_proxy/app.js", headers=headers)
+        with mock.patch.object(
+            ScormXBlock, "extract_folder_path", new_callable=mock.PropertyMock
+        ) as extract_folder_path:
+            extract_folder_path.return_value = "scorm/block/sha1"
+            return block.assets_proxy(request, "app.js")
+
+    def test_assets_proxy_range_normal(self):
+        response = self._assets_proxy_range_response("bytes=0-3")
+
+        self.assertEqual(response.status_code, 206)
+        self.assertEqual(response.body, b"abcd")
+        self.assertEqual(response.headers["Content-Range"], "bytes 0-3/26")
+        self.assertEqual(response.headers["Content-Length"], "4")
+        self.assertEqual(response.headers["Accept-Ranges"], "bytes")
+
+    def test_assets_proxy_range_suffix(self):
+        response = self._assets_proxy_range_response("bytes=-5")
+
+        self.assertEqual(response.status_code, 206)
+        self.assertEqual(response.body, b"vwxyz")
+        self.assertEqual(response.headers["Content-Range"], "bytes 21-25/26")
+
+    def test_assets_proxy_range_multi_uses_first_range(self):
+        # webob only parses the first range of a multi-range header rather
+        # than rejecting it outright.
+        response = self._assets_proxy_range_response("bytes=0-3,10-15")
+
+        self.assertEqual(response.status_code, 206)
+        self.assertEqual(response.body, b"abcd")
+        self.assertEqual(response.headers["Content-Range"], "bytes 0-3/26")
+
+    def test_assets_proxy_range_malformed_serves_full_content(self):
+        response = self._assets_proxy_range_response("bytes=abc")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.body, b"abcdefghijklmnopqrstuvwxyz")
+        self.assertNotIn("Content-Range", response.headers)
+
+    def test_assets_proxy_range_out_of_bounds_serves_full_content(self):
+        response = self._assets_proxy_range_response("bytes=1000-2000")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.body, b"abcdefghijklmnopqrstuvwxyz")
+        self.assertNotIn("Content-Range", response.headers)
+
+    def test_assets_proxy_no_range_header_serves_full_content(self):
+        response = self._assets_proxy_range_response(None)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.body, b"abcdefghijklmnopqrstuvwxyz")
+        self.assertEqual(response.headers["Accept-Ranges"], "bytes")
+        self.assertNotIn("Content-Range", response.headers)
 
     @data(
         "",

@@ -258,36 +258,22 @@ class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
         with self.storage.open(file_path) as response:
             file_content = response.read()
 
-        # HTTP 206 Partial Content (Byte-Range requests) for audio seeking
+        # HTTP 206 Partial Content (Byte-Range requests) for audio seeking.
+        # request is always a webob.Request here, so let webob parse the
+        # Range header: it already handles suffix/malformed/out-of-range
+        # cases and returns None instead of raising.
         total_size = len(file_content)
-        range_header = (
-            request.headers.get("Range")
-            if hasattr(request, "headers")
-            else None
-        ) or (
-            request.environ.get("HTTP_RANGE")
-            if hasattr(request, "environ")
-            else None
-        ) or (
-            request.META.get("HTTP_RANGE")
-            if hasattr(request, "META")
-            else None
-        )
-        if range_header and range_header.startswith("bytes="):
-            byte_range = range_header.replace("bytes=", "").split("-")
-            start = int(byte_range[0]) if byte_range[0] else 0
-            end = int(byte_range[1]) if byte_range[1] else total_size - 1
-            start = max(0, min(start, total_size - 1))
-            end = max(start, min(end, total_size - 1))
-            content_length = end - start + 1
-            res = Response(file_content[start:end+1], status=206, content_type=file_type)
-            res.headers["Content-Range"] = f"bytes {start}-{end}/{total_size}"
-            res.headers["Content-Length"] = str(content_length)
-            res.headers["Accept-Ranges"] = "bytes"
-            res.headers["Access-Control-Allow-Origin"] = "*"
-            return res
-
-        res = Response(file_content, content_type=file_type)
+        content_range = request.range.content_range(total_size) if request.range else None
+        if content_range:
+            res = Response(
+                file_content[content_range.start:content_range.stop],
+                status=206,
+                content_type=file_type,
+            )
+            res.headers["Content-Range"] = str(content_range)
+            res.headers["Content-Length"] = str(content_range.stop - content_range.start)
+        else:
+            res = Response(file_content, content_type=file_type)
         res.headers["Accept-Ranges"] = "bytes"
         res.headers["Access-Control-Allow-Origin"] = "*"
         return res
