@@ -19,6 +19,10 @@
             {% if scorm_xblock.package_meta.name %}
             <span class="tip setting-help setting-input-file"><span>{% trans "Currently:" %}</span> {{ scorm_xblock.package_meta.name }}</span>
             {% endif %}
+            <div class="scorm-upload-status" aria-live="polite" style="display: none;">
+                <progress class="scorm-upload-progress" max="100" value="0"></progress>
+                <span class="scorm-upload-message"></span>
+            </div>
         </li>
 
         <li class="field comp-setting-entry is-set">

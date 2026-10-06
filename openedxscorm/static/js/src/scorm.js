@@ -1,8 +1,10 @@
-function SCORM_12_API(GetValue, SetValue) {
+function SCORM_12_API(GetValue, SetValue, Initialize, Terminate) {
   this.LMSInitialize = function () {
+    Initialize();
     return "true";
   };
   this.LMSFinish = function () {
+    Terminate();
     return "true";
   };
   this.LMSCommit = function () {
@@ -21,11 +23,13 @@ function SCORM_12_API(GetValue, SetValue) {
   this.LMSSetValue = SetValue;
 }
 
-function SCORM_2004_API(GetValue, SetValue) {
+function SCORM_2004_API(GetValue, SetValue, Initialize, Terminate) {
   this.Initialize = function () {
+    Initialize();
     return "true";
   };
   this.Terminate = function () {
+    Terminate();
     return "true";
   };
   this.Commit = function () {
@@ -44,10 +48,15 @@ function SCORM_2004_API(GetValue, SetValue) {
   this.SetValue = SetValue;
 }
 
-function initScorm(scormVersion, getValueFunc, setValueFunc) {
+function initScorm(scormVersion, getValueFunc, setValueFunc, initializeFunc, terminateFunc) {
+  // The initialize and terminate callbacks are optional: they are only used to
+  // track the beginning and the end of the learner session.
+  var noop = function () {};
+  initializeFunc = initializeFunc || noop;
+  terminateFunc = terminateFunc || noop;
   if (scormVersion == 'SCORM_12') {
-    API = new SCORM_12_API(getValueFunc, setValueFunc);
+    API = new SCORM_12_API(getValueFunc, setValueFunc, initializeFunc, terminateFunc);
   } else {
-    API_1484_11 = new SCORM_2004_API(getValueFunc, setValueFunc);
+    API_1484_11 = new SCORM_2004_API(getValueFunc, setValueFunc, initializeFunc, terminateFunc);
   }
 }

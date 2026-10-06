@@ -23,6 +23,7 @@ Features
 * Integrated grading, compatible with rescoring
 * Optional custom width navigation menu interpreted from manifest file
 * Compatibility with `Django storages <https://django-storages.readthedocs.io/>`__, customizable storage backend
+* Learner activity tracking: SCORM API calls are emitted as tracking events and, optionally, as xAPI statements
 
 Installation
 ------------
@@ -155,12 +156,115 @@ These settings may be added to Tutor by creating a `plugin <https://docs.tutor.o
     }"""
     )
 
+Learner activity tracking
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+SCORM packages are black boxes: without instrumentation, the only thing the platform knows about a learner session is the grade and the completion status that the package chose to report. This XBlock emits a regular Open edX tracking event for the meaningful SCORM API calls, so that learner activity inside a package shows up in the tracking logs.
+
+The following events are emitted:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Event
+     - Emitted when
+     - Enabled by default
+   * - ``openedx.xblock.scorm.initialized``
+     - The package calls ``LMSInitialize``/``Initialize``
+     - yes
+   * - ``openedx.xblock.scorm.interacted``
+     - The learner moves through the package, or answers one of its interactions
+     - no
+   * - ``openedx.xblock.scorm.scored``
+     - The package reports a score, on a graded block
+     - yes
+   * - ``openedx.xblock.scorm.completed``
+     - The package reports a "completed" status
+     - yes
+   * - ``openedx.xblock.scorm.passed`` / ``.failed``
+     - The package reports a success status
+     - yes
+   * - ``openedx.xblock.scorm.terminated``
+     - The package calls ``LMSFinish``/``Terminate``; carries the time spent in the session
+     - yes
+
+Nothing needs to be installed or configured for these events to be emitted. Progress is not tracked here: ``cmi.progress_measure`` is already reported to the platform as block completion.
+
+``interacted`` is the exception: it is the only event that is both high-volume and that carries learner answers, so it is off by default. Enable it with::
+
+    XBLOCK_SETTINGS["ScormXBlock"] = {
+        "TRACKING_EVENTS": {
+            "interacted": True,
+        },
+    }
+
+``interacted`` events are emitted when the package writes one of the SCORM elements that indicate that the learner is moving through it. By default these are the current location (``cmi.core.lesson_location`` and ``cmi.location``, which packages update when the learner turns a slide) and the responses given to the interactions of the package. This list is configurable, and accepts ``fnmatch`` patterns::
+
+    XBLOCK_SETTINGS["ScormXBlock"] = {
+        "TRACKING_INTERACTION_ELEMENTS": [
+            "cmi.core.lesson_location",
+            "cmi.location",
+            "cmi.interactions.*",
+        ],
+    }
+
+Any other event can be disabled the same way, and a single switch turns tracking off entirely, including the two extra requests that the browser makes to record the beginning and the end of a session::
+
+    XBLOCK_SETTINGS["ScormXBlock"] = {
+        "TRACKING_EVENTS_ENABLED": False,
+    }
+
+Sending SCORM activity to an LRS (xAPI)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This package also ships xAPI transformers for the events above, so that platforms running `event-routing-backends <https://github.com/openedx/event-routing-backends>`__ can forward SCORM activity to their LRS (`Aspects <https://docs.openedx.org/projects/openedx-aspects/>`__, for instance). They are **opt-in**: nothing is registered unless you ask for it.
+
+Statements follow the `cmi5 <https://github.com/AICC/CMI-5_Spec_Current>`__ profile: the SCORM block is an ADL "lesson" activity, the verbs are the ADL ``initialized``/``interacted``/``scored``/``completed``/``passed``/``failed``/``terminated`` verbs, and the score, the success status and the session duration are reported in the statement result.
+
+Register the transformers and let the SCORM events through the event pipeline, in the LMS and the CMS settings::
+
+    INSTALLED_APPS.append("openedxscorm.processors.xapi")
+
+    from openedxscorm.tracking import tracked_event_names
+
+    SCORM_TRACKING_EVENTS = tracked_event_names()
+
+    # The events that event-routing-backends processes.
+    EVENT_TRACKING_BACKENDS_ALLOWED_XAPI_EVENTS += SCORM_TRACKING_EVENTS
+
+    # Each backend of the tracking pipeline filters events on its own copy of that
+    # list, taken when event-routing-backends defined the backends. An event that is
+    # missing from these copies is discarded before it reaches a transformer.
+    _event_transformer = EVENT_TRACKING_BACKENDS["event_transformer"]["OPTIONS"]
+    for _processors in (
+        _event_transformer["processors"],
+        _event_transformer["backends"]["xapi"]["OPTIONS"]["processors"],
+    ):
+        for _processor in _processors:
+            if _processor["ENGINE"].endswith("NameWhitelistProcessor"):
+                _processor["OPTIONS"]["whitelist"] = set(
+                    _processor["OPTIONS"]["whitelist"]
+                ) | set(SCORM_TRACKING_EVENTS)
+
+    # Platforms that ship their tracking logs through the event bus, as Aspects does
+    # when ASPECTS_ENABLE_EVENT_BUS_PRODUCER is enabled, filter on one more copy.
+    try:
+        EVENT_BUS_TRACKING_LOGS.update(SCORM_TRACKING_EVENTS)
+    except NameError:
+        pass
+
+``openedxscorm.tracking`` imports nothing from the platform, so the settings may import it.
+
+With Tutor, these settings belong in the ``openedx-lms-production-settings`` and ``openedx-cms-production-settings`` patches, and in their ``-development-`` counterparts: those are applied after event-routing-backends has defined ``EVENT_TRACKING_BACKENDS``, which the snippet above amends.
+
 Development
 -----------
 
 Run unit tests with::
 
-    $ pytest /mnt/openedx-scorm-xblock/openedxscorm/tests.py
+    $ pytest /mnt/openedx-scorm-xblock/openedxscorm/tests.py /mnt/openedx-scorm-xblock/openedxscorm/test_processors.py
+
+The tests of the xAPI transformers are skipped unless the optional dependency is installed (``pip install -e ".[xapi]"``).
 
 Troubleshooting
 ---------------

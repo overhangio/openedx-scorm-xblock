@@ -14,6 +14,25 @@
     height: 35px;
 }
 
+/* Studio upload feedback */
+.scorm-upload-status {
+    padding-left: 25%;
+    margin-left: 14px;
+    padding-top: 5px;
+}
+.scorm-upload-status .scorm-upload-progress {
+    width: 60%;
+    vertical-align: middle;
+}
+.scorm-upload-status .scorm-upload-message {
+    display: inline-block;
+    padding-left: 8px;
+    vertical-align: middle;
+}
+.scorm-upload-status.scorm-upload-indeterminate .scorm-upload-progress {
+    display: none;
+}
+
 .scorm-xblock .scorm-content .scorm-panel {
     display: flex;
     flex-direction: row;

@@ -3,6 +3,7 @@ import hashlib
 import os
 import logging
 import re
+import time
 import xml.etree.ElementTree as ET
 import zipfile
 import mimetypes
@@ -22,6 +23,8 @@ from xblock.core import XBlock
 from xblock.completable import CompletableXBlockMixin
 from xblock.exceptions import JsonHandlerError
 from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
+
+from openedxscorm.tracking import ScormTrackingMixin
 
 try:
     # Older Open edX releases (Redwood and earlier) install a backported version of
@@ -55,7 +58,7 @@ OS_PATH_ALT_SEP = '\\'
 
 @XBlock.wants("settings")
 @XBlock.wants("user")
-class ScormXBlock(XBlock, CompletableXBlockMixin):
+class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
 
     display_name = String(
         display_name=_("Display Name"),
@@ -79,6 +82,11 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
     success_status = String(scope=Scope.user_state, default="unknown")
 
     lesson_score = Float(scope=Scope.user_state, default=0)
+
+    # Unix timestamp of the last "LMSInitialize"/"Initialize" API call, used to
+    # measure the time spent by the learner in the SCORM package.
+    session_started_at = Float(scope=Scope.user_state, default=0)
+
     weight = Float(
         default=1,
         display_name=_("Weight"),
@@ -210,6 +218,7 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
                 "popup_height": self.height or 800,
                 "scorm_data": self.scorm_data,
                 "block_height": self.height or 450,
+                "tracking_enabled": self.is_tracking_enabled,
             },
         )
         return frag
@@ -231,8 +240,20 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         -------
         Response object containing the content of the requested file with the appropriate content type.
         """
-        file_name = os.path.basename(suffix)
-        file_path = self.find_file_path(file_name)
+        try:
+            clean_suffix = self.clean_asset_path(suffix)
+        except ScormError:
+            logger.error("Invalid asset path: %r", suffix)
+            return Response("Invalid asset path", status=400, content_type="text/plain")
+        file_name = os.path.basename(clean_suffix)
+        requested_path = os.path.join(self.extract_folder_path, clean_suffix)
+        if self.storage.exists(requested_path):
+            file_path = requested_path
+        else:
+            # Preserve legacy basename lookup for packages or callers that do
+            # not request the extracted relative path. Exact-path lookup above
+            # avoids this fallback for normal requests with duplicate basenames.
+            file_path = self.find_file_path(file_name)
         file_type, _ = mimetypes.guess_type(file_name)
         with self.storage.open(file_path) as response:
             file_content = response.read()
@@ -650,6 +671,32 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         Removes query string from a path
         """
         return path.split('?')[0] if path else path
+
+    def clean_asset_path(self, path):
+        """
+        Clean and validate an asset path requested through the proxy.
+        Asset paths must be relative paths that stay within the extracted
+        package folder. Absolute paths, drive-letter paths, parent-directory
+        traversal, and null bytes are rejected.
+        """
+        cleaned = urllib.parse.unquote(self.clean_path(path))
+        if not cleaned:
+            raise ScormError(f"Invalid asset path (empty): {path!r}")
+        if "\x00" in cleaned:
+            raise ScormError(f"Invalid asset path (null byte): {path!r}")
+        if cleaned.endswith(("/", OS_PATH_ALT_SEP)):
+            raise ScormError(f"Invalid asset path (directory, not a file): {path!r}")
+
+        normalized_separators_path = cleaned.replace(OS_PATH_ALT_SEP, os.path.sep)
+        path_parts = normalized_separators_path.split(os.path.sep)
+        cleaned = os.path.normpath(normalized_separators_path)
+
+        if os.path.isabs(cleaned) or re.match(r"^[A-Za-z]:", cleaned):
+            raise ScormError(f"Invalid asset path (must be relative): {path!r}")
+        if cleaned == os.curdir or os.pardir in path_parts:
+            raise ScormError(f"Invalid asset path (path traversal): {path!r}")
+
+        return cleaned
     
     def path_exists(self, path):
         """
@@ -691,6 +738,40 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         return "normal"
 
     @XBlock.json_handler
+    def scorm_initialize(self, _data, _suffix):
+        """
+        Called when the package calls the "LMSInitialize"/"Initialize" API method.
+
+        This is the beginning of a SCORM session; it is tracked both to measure
+        the time spent in the package and to know that the learner actually
+        launched it.
+        """
+        if not self.is_tracking_enabled:
+            return {"result": "success"}
+        self.session_started_at = time.time()
+        self.track_scorm_session_start()
+        return {"result": "success"}
+
+    @XBlock.json_handler
+    def scorm_terminate(self, _data, _suffix):
+        """
+        Called when the package calls the "LMSFinish"/"Terminate" API method.
+
+        This is the end of a SCORM session. Note that packages are not required
+        to call this method, and that browsers may drop the request when the
+        learner closes the page, so the absence of this event does not mean that
+        the session is still running.
+        """
+        if not self.is_tracking_enabled:
+            return {"result": "success"}
+        duration = None
+        if self.session_started_at:
+            duration = max(time.time() - self.session_started_at, 0)
+            self.session_started_at = 0
+        self.track_scorm_session_end(duration=duration)
+        return {"result": "success"}
+
+    @XBlock.json_handler
     def scorm_get_value(self, data, _suffix):
         """
         Here we get only the get_value events that were not filtered by the LMSGetValue js function.
@@ -714,7 +795,14 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
 
     @XBlock.json_handler
     def scorm_set_values(self, data_list, _suffix):
-        return [self.set_value(data) for data in data_list]
+        # Packages usually write several elements at once ("cmi.score.raw" and
+        # "cmi.score.scaled", for instance): tracking events are collected for
+        # the whole batch, such that a single state change is tracked only once.
+        self.open_tracking_batch()
+        try:
+            return [self.set_value(data) for data in data_list]
+        finally:
+            self.close_tracking_batch()
 
     @XBlock.json_handler
     def scorm_set_value(self, data, _suffix):
@@ -773,6 +861,14 @@ class ScormXBlock(XBlock, CompletableXBlockMixin):
         ):
             if self.has_score:
                 self.publish_grade()
+
+        self.track_set_value(
+            name,
+            value,
+            completion_status=completion_status,
+            success_status=success_status,
+            lesson_score=lesson_score,
+        )
 
         return context
 
