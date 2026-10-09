@@ -258,8 +258,25 @@ class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
         with self.storage.open(file_path) as response:
             file_content = response.read()
 
-
-        return Response(file_content, content_type=file_type)
+        # HTTP 206 Partial Content (Byte-Range requests) for audio seeking.
+        # request is always a webob.Request here, so let webob parse the
+        # Range header: it already handles suffix/malformed/out-of-range
+        # cases and returns None instead of raising.
+        total_size = len(file_content)
+        content_range = request.range.content_range(total_size) if request.range else None
+        if content_range:
+            res = Response(
+                file_content[content_range.start:content_range.stop],
+                status=206,
+                content_type=file_type,
+            )
+            res.headers["Content-Range"] = str(content_range)
+            res.headers["Content-Length"] = str(content_range.stop - content_range.start)
+        else:
+            res = Response(file_content, content_type=file_type)
+        res.headers["Accept-Ranges"] = "bytes"
+        res.headers["Access-Control-Allow-Origin"] = "*"
+        return res
 
     def studio_view(self, context=None):
         # Note that we cannot use xblockutils's StudioEditableXBlockMixin because we
@@ -1046,7 +1063,12 @@ class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
         """
         Same as `find_file_path`, but don't raise error on file not found.
         """
-        subfolders, files = self.storage.listdir(root)
+        if not self.storage.exists(root):
+            return None
+        try:
+            subfolders, files = self.storage.listdir(root)
+        except (FileNotFoundError, OSError):
+            return None
         for f in files:
             if f == filename:
                 return os.path.join(root, filename)
