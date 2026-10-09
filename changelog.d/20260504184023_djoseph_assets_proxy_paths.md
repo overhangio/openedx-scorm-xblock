@@ -1,1 +1,0 @@
-- [Bugfix] Serve SCORM assets at the exact requested path, fixing blank-page rendering for packages containing duplicate basenames such as Articulate Rise packages with multiple `scormdriver.js` files. Also reject path traversal and absolute paths in asset URLs. (by @djoseph)

@@ -16,6 +16,15 @@ instructions, because git commits are used to generate release notes:
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-19.0.5'></a>
+## v19.0.5 (2026-10-09)
+
+- [Bugfix] Serve SCORM assets at the exact requested path, fixing blank-page rendering for packages containing duplicate basenames such as Articulate Rise packages with multiple `scormdriver.js` files. Also reject path traversal and absolute paths in asset URLs. (by @djoseph)
+
+- [Improvement] Report the real outcome of a SCORM package upload in Studio instead of the misleading "Studio's having trouble saving your work" error. Large packages whose extraction outlives the web server request timeout now show an upload progress bar and an explanation that the package is still being extracted, and the "Saving" indicator no longer hangs. Also fixes the Save button staying permanently disabled after a submit. (by @Syed-Ali-Abbas-568)
+
+- [Feature] Track learner activity inside SCORM packages: the XBlock now emits a tracking event when a package starts and ends a session, when the learner answers one of its interactions, and when it reports a score, a completion or a success status. Nothing new is required from operators; every event can be disabled through `XBLOCK_SETTINGS["ScormXBlock"]`. Platforms that route their events to an LRS can opt into the xAPI transformers shipped with this package to get cmi5-style statements for SCORM activity. (by @felipemontoya)
+
 <a id='changelog-19.0.4'></a>
 ## v19.0.4 (2026-06-11)
 
