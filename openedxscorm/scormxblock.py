@@ -22,7 +22,7 @@ from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.completable import CompletableXBlockMixin
 from xblock.exceptions import JsonHandlerError
-from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer
+from xblock.fields import Scope, String, Float, Boolean, Dict, DateTime, Integer, List
 
 from openedxscorm.tracking import ScormTrackingMixin
 
@@ -55,6 +55,47 @@ def _(text):
 logger = logging.getLogger(__name__)
 OS_PATH_ALT_SEP = '\\'
 
+# Stored instead of the rendered message so the value stays stable and the
+# message can still be translated at render time.
+WARNING_NO_COMPLETION_STATUS = "no_completion_status"
+
+PACKAGE_WARNING_MESSAGES = {
+    WARNING_NO_COMPLETION_STATUS: _(
+        "This SCORM package does not appear to report completion to the LMS: "
+        'it never references "cmi.core.lesson_status" (SCORM 1.2), '
+        '"cmi.completion_status" (SCORM 2004), or "cmi.progress_measure". '
+        "Learners may go through the whole content and still be marked as "
+        "not completed. Fix the package in your authoring tool so it "
+        "reports completion, then upload it again."
+    ),
+}
+
+# Media and fonts make up most packages and never contain SCORM API calls.
+SCANNED_FILE_EXTENSIONS = (
+    ".js",
+    ".mjs",
+    ".htm",
+    ".html",
+    ".xhtml",
+    ".xml",
+    ".json",
+    ".txt",
+)
+
+# The elements we scan for live in the package's driver, one of the first
+# files read, so scanning further costs more than the warning is worth.
+MAX_SCANNED_SIZE = 20 * 1024 * 1024
+
+# Matched as bare names rather than full "cmi.core.lesson_status" etc. paths,
+# since minified drivers often assemble the "cmi." prefix at runtime.
+# progress_measure is included because this xblock also treats it as a
+# completion signal on its own, through emit_completion() (see set_value).
+COMPLETION_SIGNAL_ELEMENTS = (
+    b"lesson_status",
+    b"completion_status",
+    b"progress_measure",
+)
+
 
 @XBlock.wants("settings")
 @XBlock.wants("user")
@@ -71,6 +112,10 @@ class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
     )
     package_meta = Dict(scope=Scope.content)
     scorm_version = String(default="SCORM_12", scope=Scope.settings)
+
+    # None means "never validated" (every package uploaded before this
+    # existed); an empty list means "validated, nothing to report".
+    package_warnings = List(scope=Scope.content, default=None)
 
     # lesson_status is for SCORM 1.2 and can take the following values:
     # "passed", "completed", "failed", "incomplete", "browsed", "not attempted"
@@ -189,7 +234,78 @@ class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
         if not self.index_page_path:
             context["message"] = "Click 'Edit' to modify this module and upload a new SCORM package."
         context["can_view_student_reports"] = True
+        context["package_warnings"] = self.get_package_warning_messages()
         return self.student_view(context=context)
+
+    def get_package_warning_messages(self):
+        """
+        Displayable warnings about the uploaded package.
+
+        Legacy packages (uploaded before this validation existed) have no
+        stored result and are scanned here instead. That scan reads from
+        storage, so the result is cached rather than written back to
+        ``package_warnings``: a field written outside a handler isn't
+        persisted by Studio.
+        """
+        if not self.package_meta or not self.index_page_path:
+            return []
+
+        warning_codes = self.package_warnings
+        if warning_codes is None:
+            cache_key = f"scorm_xblock:package_warnings:{self.scope_ids.usage_id}"
+            warning_codes = cache.get(cache_key)
+            if warning_codes is None:
+                # A rerun clones this block before its storage, so the extract
+                # folder may still be missing at this point. Without this, a
+                # reran legacy package would get permanently cached as
+                # warning-free just because there was nothing to scan yet.
+                self._rehydrate_extract_folder_if_missing()
+                try:
+                    warning_codes = self.scan_extracted_package()
+                except Exception:  # pylint: disable=broad-except
+                    logger.exception(
+                        "Failed to validate SCORM package of %s",
+                        self.scope_ids.usage_id,
+                    )
+                    return []
+                cache.set(cache_key, warning_codes, timeout=None)
+
+        return [
+            PACKAGE_WARNING_MESSAGES[code]
+            for code in warning_codes
+            if code in PACKAGE_WARNING_MESSAGES
+        ]
+
+    def log_package_warnings(self, warning_codes):
+        """Surface scan results to operators, not just Studio authors."""
+        if warning_codes:
+            logger.warning(
+                "SCORM package of %s raised the following warnings: %s",
+                self.scope_ids.usage_id,
+                ", ".join(warning_codes),
+            )
+
+    def scan_extracted_package(self):
+        """Scan an already-extracted package, for packages predating this check."""
+        scan = PackageScan()
+        stack = [self.extract_folder_path]
+        while stack and not scan.is_done:
+            current = stack.pop()
+            try:
+                directories, files = self.storage.listdir(current)
+            except FileNotFoundError:
+                continue
+            for directory in directories:
+                stack.append(os.path.join(current, directory))
+            for file_name in files:
+                if not scan.wants(file_name):
+                    continue
+                with self.storage.open(
+                    os.path.join(current, file_name), "rb"
+                ) as file_handle:
+                    scan.feed(file_handle.read(MAX_SCANNED_SIZE))
+        self.log_package_warnings(scan.warnings)
+        return scan.warnings
 
     def student_view(self, context=None):
         student_context = {
@@ -400,6 +516,10 @@ class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
                     "Could not find 'imsmanifest.xml' file in the scorm package"
                 )
 
+            # Scan while extracting: every file is read anyway, so this adds
+            # no extra storage access.
+            scan = PackageScan()
+
             for zipinfo in zipinfos:
                 # Extract only files that are below the root
                 if zipinfo.filename.startswith(root_path):
@@ -407,17 +527,20 @@ class ScormXBlock(ScormTrackingMixin, XBlock, CompletableXBlockMixin):
                     # the is_dir() method to verify whether a ZipInfo object points to a
                     # directory.
                     # https://docs.python.org/3.6/library/zipfile.html#zipfile.ZipInfo.is_dir
-                    # TODO: remove backported 'is_dir' method once upgraded to 
-                    # python 3.12.3 or greater. 
+                    # TODO: remove backported 'is_dir' method once upgraded to
+                    # python 3.12.3 or greater.
                     if not is_dir(zipinfo):
                         dest_path = os.path.join(
                             self.extract_folder_path,
                             os.path.relpath(zipinfo.filename, root_path),
                         )
-                        self.storage.save(
-                            dest_path,
-                            ContentFile(scorm_zipfile.read(zipinfo.filename)),
-                        )
+                        content = scorm_zipfile.read(zipinfo.filename)
+                        if scan.wants(zipinfo.filename):
+                            scan.feed(content)
+                        self.storage.save(dest_path, ContentFile(content))
+
+            self.package_warnings = scan.warnings
+            self.log_package_warnings(self.package_warnings)
 
     def add_xml_to_node(self, node):
         """
@@ -1267,6 +1390,51 @@ def is_dir(zipinfo):
         # with the extraction code which already handles this:
         return True
     return False 
+
+
+class PackageScan:
+    """
+    Byte-level scan of a SCORM package for any mention of the elements used to
+    report completion. A package that never mentions them cannot report it.
+
+    Bounded: skips files that can't hold SCORM API calls, stops at the first
+    match, and gives up after ``MAX_SCANNED_SIZE`` bytes. Only a scan that read
+    something and didn't run out of budget can conclude a package reports
+    nothing; see ``is_conclusive``.
+    """
+
+    def __init__(self):
+        self.found = False
+        self.scanned_files = 0
+        self.scanned_size = 0
+
+    @property
+    def is_done(self):
+        return self.found or self.scanned_size >= MAX_SCANNED_SIZE
+
+    @property
+    def is_conclusive(self):
+        """
+        False for a scan that read nothing (empty/missing package) or ran out
+        of budget: neither tells us anything about the package.
+        """
+        return bool(self.scanned_files) and self.scanned_size < MAX_SCANNED_SIZE
+
+    def wants(self, filename):
+        return not self.is_done and filename.lower().endswith(SCANNED_FILE_EXTENSIONS)
+
+    def feed(self, content):
+        self.scanned_files += 1
+        self.scanned_size += len(content)
+        self.found = self.found or any(
+            element in content for element in COMPLETION_SIGNAL_ELEMENTS
+        )
+
+    @property
+    def warnings(self):
+        if self.found or not self.is_conclusive:
+            return []
+        return [WARNING_NO_COMPLETION_STATUS]
 
 
 class ScormError(Exception):

@@ -56,6 +56,13 @@ Go back to your course content. In the "Add New Component" section, click "Advan
 Click "Edit" on the newly-created module: this is where you will upload your content package. It should be a ``.zip`` file containing an ``imsmanifest.xml`` file at the root.
 The content of the package will be displayed in the Studio and the LMS after you click "Save".
 
+Completion reporting
+~~~~~~~~~~~~~~~~~~~~
+
+In SCORM, the content package decides when a learner has completed an activity, not the LMS. It's expected to report this by setting ``cmi.core.lesson_status`` (SCORM 1.2), ``cmi.completion_status`` (SCORM 2004), or ``cmi.progress_measure``. A package that never does so leaves learners marked as "not attempted" no matter how much content they go through, and there's nothing this XBlock can do about it: it has to be fixed in the authoring tool that produced it.
+
+To surface that instead of failing silently, uploaded packages are scanned for any attempt to report completion, and a warning is shown on the component in Studio when none is found. Course authors only: learners never see it. Since it's a scan of the package contents, it may stay quiet about a package that reports completion in an unusual way -- it says nothing rather than risk warning about a package that's actually fine.
+
 Advanced configuration
 ----------------------
 
